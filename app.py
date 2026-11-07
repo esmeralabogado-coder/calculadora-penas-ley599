@@ -67,10 +67,12 @@ def calcular_penas_y_cuartos(
     min_trabajo = min_basico
     max_trabajo = max_basico
     
+    # 1. Tipo Calificado
     if es_calificado:
         min_trabajo = min_basico + (min_basico * calif_min_aumento)
         max_trabajo = max_basico + (max_basico * calif_max_aumento)
 
+    # 2. Atenuantes Especiales (Ira / Marginalidad)
     if estado_especial == "Ira o Intenso Dolor (Art. 57: Disminución de 1/6 a 1/2)":
         min_trabajo = max(0.0, min_trabajo - (min_trabajo * 0.50)) 
         max_trabajo = max(0.0, max_trabajo - (max_trabajo * (1/6))) 
@@ -78,14 +80,17 @@ def calcular_penas_y_cuartos(
         min_trabajo = max(0.0, min_trabajo - (min_trabajo * 0.75)) 
         max_trabajo = max(0.0, max_trabajo - (max_trabajo * 0.50)) 
 
+    # 3. Concurso
     if es_concurso:
         min_trabajo = min_trabajo + (min_trabajo * aumento_concurso_min)
         max_trabajo = max_trabajo + (max_trabajo * aumento_concurso_max)
 
+    # 4. Tentativa
     if tentativa:
         min_trabajo = min_trabajo * 0.25  
         max_trabajo = max_trabajo * 0.50  
 
+    # 5. Circunstancias Específicas
     if tipo_circ_especifica == "Agravante específica (Aumento fraccionado)":
         min_trabajo = min_trabajo + (min_trabajo * frac_circ_min)
         max_trabajo = max_trabajo + (max_trabajo * frac_circ_max)
@@ -93,22 +98,7 @@ def calcular_penas_y_cuartos(
         min_trabajo = max(0.0, min_trabajo - (min_trabajo * frac_circ_max))
         max_trabajo = max(0.0, max_trabajo - (max_trabajo * frac_circ_min))
 
-    if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
-        if "Imputación" in fase_allanamiento:
-            min_trabajo = min_trabajo * 0.50
-            max_trabajo = max_trabajo * 0.50
-        elif "Preparatoria" in fase_allanamiento:
-            min_trabajo = min_trabajo * (2/3)
-            max_trabajo = max_trabajo * (2/3)
-        elif "Juicio" in fase_allanamiento:
-            min_trabajo = min_trabajo * (4/5)
-            max_trabajo = max_trabajo * (4/5)
-            
-    elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
-        factor_descuento = (100.0 - rebaja_pactada_pct) / 100.0
-        min_trabajo = min_trabajo * factor_descuento
-        max_trabajo = max_trabajo * factor_descuento
-
+    # 6. Reglas de Modificación (Art. 61) si no es preacuerdo
     if modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)":
         if regla == 0:
             nuevo_min = min_trabajo
@@ -135,6 +125,23 @@ def calcular_penas_y_cuartos(
     else:
         nuevo_min = min_trabajo
         nuevo_max = max_trabajo
+
+    # 7. Aplicación de Rebajas por Terminación Anticipada (Allanamiento / Preacuerdo) sobre el resultado final
+    if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
+        if "Imputación" in fase_allanamiento:
+            nuevo_min = nuevo_min * 0.50
+            nuevo_max = nuevo_max * 0.50
+        elif "Preparatoria" in fase_allanamiento:
+            nuevo_min = nuevo_min * (2/3) # Rebaja de 1/3
+            nuevo_max = nuevo_max * (2/3)
+        elif "Juicio" in fase_allanamiento:
+            nuevo_min = nuevo_min * (4/5) # Rebaja de 1/5
+            nuevo_max = nuevo_max * (4/5)
+            
+    elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
+        factor_descuento = (100.0 - rebaja_pactada_pct) / 100.0
+        nuevo_min = nuevo_min * factor_descuento
+        nuevo_max = nuevo_max * factor_descuento
     
     nuevo_min = max(0.0, nuevo_min)
     nuevo_max = max(0.0, nuevo_max)
@@ -147,24 +154,26 @@ def calcular_penas_y_cuartos(
     c3 = (round(nuevo_min + 2*cuarto_tam, 2), round(nuevo_min + 3*cuarto_tam, 2))
     c4 = (round(nuevo_min + 3*cuarto_tam, 2), round(nuevo_max, 2))
 
-    if gen_agravantes and not gen_atenuantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)":
+    # Si hay allanamiento o preacuerdo, se excluye el sistema tradicional de cuartos rígidos y se muestra el rango rebajado
+    if modalidad_rebaja != "Ninguna":
+        nombre_etiqueta = "Rango Definitivo con Rebaja por Allanamiento" if modalidad_rebaja == "Allanamiento unilateral (Fases legales)" else "Pena Fija / Rango Pactado en Preacuerdo"
         cuartos_dict = {
-            "Segundo cuarto (Medio 1)": c2,
-            "Tercer cuarto (Medio 2)": c3,
-            "Cuarto cuarto (Máximo)": c4,
-            "(Primer cuarto excluido por Art. 61)": c1
-        }
-    elif gen_atenuantes and not gen_agravantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)":
-        cuartos_dict = {
-            "Primer cuarto (Mínimo - Atenuado)": c1,
-            "Segundo cuarto (Medio 1)": c2,
-            "Tercer cuarto (Medio 2)": c3,
-            "(Cuarto cuarto desplazado)": c4
+            nombre_etiqueta: (round(nuevo_min, 2), round(nuevo_max, 2))
         }
     else:
-        if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
+        if gen_agravantes and not gen_atenuantes:
             cuartos_dict = {
-                "Pena Fija / Rango Pactado en Preacuerdo": (round(nuevo_min, 2), round(nuevo_max, 2))
+                "Segundo cuarto (Medio 1)": c2,
+                "Tercer cuarto (Medio 2)": c3,
+                "Cuarto cuarto (Máximo)": c4,
+                "(Primer cuarto excluido por Art. 61)": c1
+            }
+        elif gen_atenuantes and not gen_agravantes:
+            cuartos_dict = {
+                "Primer cuarto (Mínimo - Atenuado)": c1,
+                "Segundo cuarto (Medio 1)": c2,
+                "Tercer cuarto (Medio 2)": c3,
+                "(Cuarto cuarto desplazado)": c4
             }
         else:
             cuartos_dict = {
@@ -332,13 +341,13 @@ if st.sidebar.button("Calcular individualización"):
         if es_calificado: notas_ajuste.append("Tipo Calificado / Agravante de Entrada")
         if estado_especial != "Ninguno": notas_ajuste.append(estado_especial)
         if es_concurso: notas_ajuste.append("Concurso de Delitos (Art. 31)")
-        if gen_agravantes and not gen_atenuantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)": 
+        if gen_agravantes and not gen_atenuantes and modalidad_rebaja == "Ninguna": 
             notas_ajuste.append("Agravantes Genéricas (Art. 61 - Se excluye 1er cuarto)")
-        if gen_atenuantes and not gen_agravantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)": 
+        if gen_atenuantes and not gen_agravantes and modalidad_rebaja == "Ninguna": 
             notas_ajuste.append("Atenuantes Genéricas (Art. 61)")
         if tipo_circ_especifica != "Ninguna": notas_ajuste.append(tipo_circ_especifica)
         if es_tentativa: notas_ajuste.append("Tentativa (Art. 27)")
-        if modalidad_rebaja != "Ninguna": notas_ajuste.append(modalidad_rebaja)
+        if modalidad_rebaja != "Ninguna": notas_ajuste.append(f"Terminación Anticipada: {modalidad_rebaja} ({fase_allanamiento if fase_allanamiento else str(rebaja_pactada_pct) + '%'})")
         
         if notas_ajuste:
             st.warning(f"⚠️ Ajustes aplicados: {', '.join(notas_ajuste)}.")
@@ -346,7 +355,13 @@ if st.sidebar.button("Calcular individualización"):
         r_min_meses, r_max_meses = res_prision['rango']
         st.info(f"Límite Aplicable: {r_min_meses} - {r_max_meses} meses ({meses_a_anos_meses(r_min_meses)} a {meses_a_anos_meses(r_max_meses)})")
         
-        titulo_seccion_prision = "📊 Rango Definitivo Pactado en Preacuerdo" if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)" else "📊 Sistema de Cuartos Punitivos (Prisión)"
+        if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
+            titulo_seccion_prision = "📊 Rango Definitivo Rebajado por Allanamiento"
+        elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
+            titulo_seccion_prision = "📊 Rango Definitivo Pactado en Preacuerdo"
+        else:
+            titulo_seccion_prision = "📊 Sistema de Cuartos Punitivos (Prisión)"
+            
         st.subheader(titulo_seccion_prision)
         
         cols = st.columns(2)
@@ -375,7 +390,7 @@ if st.sidebar.button("Calcular individualización"):
             max_cop = res_multa['rango'][1] * valor_smlmv
             st.caption(f"💵 Equivalente aproximado en pesos (COP): ${min_cop:,.2f} hasta ${max_cop:,.2f}")
             
-            titulo_seccion_multa = "📊 Rango Definitivo de Multa Pactada" if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)" else "📊 Sistema de Cuartos Punitivos (Multa en SMLMV)"
+            titulo_seccion_multa = "📊 Rango Definitivo de Multa Rebajada/Pactada" if modalidad_rebaja != "Ninguna" else "📊 Sistema de Cuartos Punitivos (Multa en SMLMV)"
             st.subheader(titulo_seccion_multa)
             
             cols_m = st.columns(2)
@@ -398,11 +413,11 @@ CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal):
 - FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}
 
 1. PENA PRIVATIVA DE LA LIBERTAD (PRISIÓN):
-- Modalidad: {modalidad_rebaja}
+- Modalidad: {modalidad_rebaja} ({fase_allanamiento if fase_allanamiento else ('Pactada: ' + str(rebaja_pactada_pct) + '%') if modalidad_rebaja != 'Ninguna' else 'Juicio Ordinario'})
 - Rango o pena aplicable: {res_prision['rango'][0]} a {res_prision['rango'][1]} meses ({meses_a_anos_meses(res_prision['rango'][0])} a {meses_a_anos_meses(res_prision['rango'][1])}).
 """
-        if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
-            texto_reporte += f"- Nota: Al tratarse de preacuerdo, no opera el sistema de cuartos punitivos (Jurisprudencia CSJ).\n"
+        if modalidad_rebaja != "Ninguna":
+            texto_reporte += f"- Nota: Al tratarse de terminación anticipada ({modalidad_rebaja}), se aplica la rebaja sobre los extremos punitivos y no opera el sistema ordinario de cuartos punitivos.\n"
         else:
             texto_reporte += f"- Sistema de Cuartos Punitivos (Art. 61):\n"
             for nombre, (c_min, c_max) in res_prision["cuartos"].items():
