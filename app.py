@@ -98,8 +98,8 @@ def calcular_penas_y_cuartos(
         min_trabajo = max(0.0, min_trabajo - (min_trabajo * frac_circ_max))
         max_trabajo = max(0.0, max_trabajo - (max_trabajo * frac_circ_min))
 
-    # 6. Reglas de Modificación (Art. 61) si no es preacuerdo
-    if modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)":
+    # 6. Reglas de Modificación (Art. 61) si no es terminación anticipada
+    if modalidad_rebaja == "Ninguna":
         if regla == 0:
             nuevo_min = min_trabajo
             nuevo_max = max_trabajo
@@ -126,7 +126,7 @@ def calcular_penas_y_cuartos(
         nuevo_min = min_trabajo
         nuevo_max = max_trabajo
 
-    # 7. Aplicación de Rebajas por Terminación Anticipada (Allanamiento / Preacuerdo) sobre el resultado final
+    # 7. Aplicación de Rebajas por Terminación Anticipada sobre MÍNIMO y MÁXIMO
     if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
         if "Imputación" in fase_allanamiento:
             nuevo_min = nuevo_min * 0.50
@@ -154,9 +154,8 @@ def calcular_penas_y_cuartos(
     c3 = (round(nuevo_min + 2*cuarto_tam, 2), round(nuevo_min + 3*cuarto_tam, 2))
     c4 = (round(nuevo_min + 3*cuarto_tam, 2), round(nuevo_max, 2))
 
-    # Si hay allanamiento o preacuerdo, se excluye el sistema tradicional de cuartos rígidos y se muestra el rango rebajado
     if modalidad_rebaja != "Ninguna":
-        nombre_etiqueta = "Rango Definitivo con Rebaja por Allanamiento" if modalidad_rebaja == "Allanamiento unilateral (Fases legales)" else "Pena Fija / Rango Pactado en Preacuerdo"
+        nombre_etiqueta = "Rango Definitivo Rebajado por Allanamiento (Mínimo y Máximo)" if modalidad_rebaja == "Allanamiento unilateral (Fases legales)" else "Pena Fija / Rango Pactado en Preacuerdo"
         cuartos_dict = {
             nombre_etiqueta: (round(nuevo_min, 2), round(nuevo_max, 2))
         }
@@ -356,7 +355,7 @@ if st.sidebar.button("Calcular individualización"):
         st.info(f"Límite Aplicable: {r_min_meses} - {r_max_meses} meses ({meses_a_anos_meses(r_min_meses)} a {meses_a_anos_meses(r_max_meses)})")
         
         if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
-            titulo_seccion_prision = "📊 Rango Definitivo Rebajado por Allanamiento"
+            titulo_seccion_prision = "📊 Rango Definitivo Rebajado (Mínimo y Máximo afectados por Allanamiento)"
         elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
             titulo_seccion_prision = "📊 Rango Definitivo Pactado en Preacuerdo"
         else:
@@ -414,10 +413,10 @@ CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal):
 
 1. PENA PRIVATIVA DE LA LIBERTAD (PRISIÓN):
 - Modalidad: {modalidad_rebaja} ({fase_allanamiento if fase_allanamiento else ('Pactada: ' + str(rebaja_pactada_pct) + '%') if modalidad_rebaja != 'Ninguna' else 'Juicio Ordinario'})
-- Rango o pena aplicable: {res_prision['rango'][0]} a {res_prision['rango'][1]} meses ({meses_a_anos_meses(res_prision['rango'][0])} a {meses_a_anos_meses(res_prision['rango'][1])}).
+- Rango o pena aplicable (Mínimo y Máximo rebajados): {res_prision['rango'][0]} a {res_prision['rango'][1]} meses ({meses_a_anos_meses(res_prision['rango'][0])} a {meses_a_anos_meses(res_prision['rango'][1])}).
 """
         if modalidad_rebaja != "Ninguna":
-            texto_reporte += f"- Nota: Al tratarse de terminación anticipada ({modalidad_rebaja}), se aplica la rebaja sobre los extremos punitivos y no opera el sistema ordinario de cuartos punitivos.\n"
+            texto_reporte += f"- Nota: Al tratarse de terminación anticipada ({modalidad_rebaja}), la rebaja se aplica sobre ambos extremos (mínimo y máximo) y no opera el sistema ordinario de cuartos punitivos (Jurisprudencia CSJ).\n"
         else:
             texto_reporte += f"- Sistema de Cuartos Punitivos (Art. 61):\n"
             for nombre, (c_min, c_max) in res_prision["cuartos"].items():
