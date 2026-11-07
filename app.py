@@ -3,16 +3,12 @@ import datetime
 from dateutil.relativedelta import relativedelta
 
 def calcular_prescripcion(fecha_hecho, max_meses_pena, es_tentativa, hubo_imputacion, fecha_imputacion=None):
-    # Término base en años (máximo de la pena)
-    # Si es tentativa, se reduce a la mitad
     meses_base = max_meses_pena / 2.0 if es_tentativa else max_meses_pena
     anos_prescripcion = meses_base / 12.0
     
-    # Por regla general, el término no puede ser inferior a 5 años (Art. 83)
     if anos_prescripcion < 5.0:
         anos_prescripcion = 5.0
         
-    # 1. Prescripción desde la ocurrencia del hecho
     anos_enteros = int(anos_prescripcion)
     dias_restantes = int((anos_prescripcion - anos_enteros) * 365)
     fecha_prescripcion_inicial = fecha_hecho + relativedelta(years=anos_enteros, days=dias_restantes)
@@ -20,10 +16,8 @@ def calcular_prescripcion(fecha_hecho, max_meses_pena, es_tentativa, hubo_imputa
     fecha_prescripcion_final = fecha_prescripcion_inicial
     interrumpida = False
     
-    # 2. Interrupción por Formulación de Imputación (Art. 86)
     if hubo_imputacion and fecha_imputacion:
         interrumpida = True
-        # Comienza a correr la mitad del término (mínimo 3 años, máximo 5 años)
         termino_interrupcion_anos = anos_prescripcion / 2.0
         if termino_interrupcion_anos < 3.0:
             termino_interrupcion_anos = 3.0
@@ -166,7 +160,6 @@ st.sidebar.header("📋 Parámetros del Caso")
 
 fecha_hecho = st.sidebar.date_input("Fecha del hecho delictivo", value=datetime.date(2026, 1, 1))
 
-# Control de Prescripción Procesal
 st.sidebar.subheader("⏳ Control de Prescripción (Art. 83 y 86)")
 hubo_imputacion = st.sidebar.checkbox("¿Se formuló imputación de cargos?")
 fecha_imputacion = None
@@ -280,4 +273,109 @@ if st.sidebar.button("Calcular individualización"):
     elif aplica_multa and min_multa > max_multa:
         st.error("El límite mínimo de multa no puede superar el máximo.")
     else:
-        st.success(f"📅 **Fecha del
+        st.success(f"📅 Fecha del hecho delictivo registrada: {fecha_hecho.strftime('%d/%m/%Y')}")
+        
+        res_presc = calcular_prescripcion(fecha_hecho, max_basico, es_tentativa, hubo_imputacion, fecha_imputacion)
+        
+        st.header("⏳ Análisis de Prescripción y Extinción de la Acción Penal")
+        st.info(f"Término prescriptivo aplicable: {res_presc['anos_termino']} años (Conforme a pena máxima y tentativa).")
+        if res_presc['interrumpida']:
+            st.warning(f"⚠️ Término interrumpido por Formulación de Imputación el {fecha_imputacion.strftime('%d/%m/%Y')}.")
+            st.error(f"🚨 Fecha fatídica de Prescripción (Extinción de la Acción Penal): {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
+        else:
+            st.error(f"🚨 Fecha fatídica de Prescripción (Extinción de la Acción Penal): {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
+
+        st.markdown("---")
+
+        res_prision = calcular_penas_y_cuartos(
+            min_basico, max_basico, regla_sel, prop1, prop2, 
+            es_calificado, calif_min_aumento, calif_max_aumento,
+            estado_especial,
+            es_concurso, aumento_concurso_min, aumento_concurso_max,
+            es_tentativa,
+            tipo_circ_especifica, frac_circ_min, frac_circ_max,
+            gen_atenuantes, gen_agravantes,
+            modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct
+        )
+        
+        st.header("🔒 1. Pena Privativa de la Libertad (Prisión)")
+        notas_ajuste = []
+        if es_calificado: notas_ajuste.append("Tipo Calificado / Agravante de Entrada")
+        if estado_especial != "Ninguno": notas_ajuste.append(estado_especial)
+        if es_concurso: notas_ajuste.append("Concurso de Delitos (Art. 31)")
+        if gen_agravantes and not gen_atenuantes: notas_ajuste.append("Agravantes Genéricas (Art. 61 - Se excluye 1er cuarto)")
+        if gen_atenuantes and not gen_agravantes: notas_ajuste.append("Atenuantes Genéricas (Art. 61)")
+        if tipo_circ_especifica != "Ninguna": notas_ajuste.append(tipo_circ_especifica)
+        if es_tentativa: notas_ajuste.append("Tentativa (Art. 27)")
+        if modalidad_rebaja != "Ninguna": notas_ajuste.append(modalidad_rebaja)
+        
+        if notas_ajuste:
+            st.warning(f"⚠️ Ajustes aplicados: {', '.join(notas_ajuste)}.")
+            
+        st.info(f"Límite Aplicable: {res_prision['rango'][0]} meses a {res_prision['rango'][1]} meses")
+        
+        st.subheader("📊 Sistema de Cuartos Punitivos (Prisión)")
+        cols = st.columns(2)
+        idx = 0
+        for nombre, (c_min, c_max) in res_prision["cuartos"].items():
+            with cols[idx % 2]:
+                st.metric(label=nombre, value=f"{c_min} - {c_max} m")
+            idx += 1
+            
+        res_multa = None
+        if aplica_multa:
+            st.markdown("---")
+            res_multa = calcular_penas_y_cuartos(
+                min_multa, max_multa, regla_sel, prop1, prop2, 
+                es_tentativa, modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct,
+                es_concurso, aumento_concurso_min, aumento_concurso_max,
+                tipo_circ_especifica, frac_circ_min, frac_circ_max,
+                gen_atenuantes, gen_agravantes,
+                modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct
+            )
+            
+            st.header("💰 2. Pena Pecuniaria (Multa - Art. 39)")
+            st.info(f"Límite Multa Aplicable: {res_multa['rango'][0]} SMLMV a {res_multa['rango'][1]} SMLMV")
+            
+            min_cop = res_multa['rango'][0] * valor_smlmv
+            max_cop = res_multa['rango'][1] * valor_smlmv
+            st.caption(f"💵 Equivalente aproximado en pesos (COP): ${min_cop:,.2f} hasta ${max_cop:,.2f}")
+            
+            st.subheader("📊 Sistema de Cuartos Punitivos (Multa en SMLMV)")
+            cols_m = st.columns(2)
+            idx_m = 0
+            for nombre, (c_min, c_max) in res_multa["cuartos"].items():
+                with cols_m[idx_m % 2]:
+                    st.metric(label=nombre, value=f"{c_min} - {c_max} SMLMV")
+                idx_m += 1
+
+        st.markdown("---")
+        st.subheader("📑 Resumen para Memoriales / Informes")
+        
+        texto_reporte = f"""INFORME DE DOSIFICACIÓN, CUARTOS PUNITIVOS Y PRESCRIPCIÓN
+Fecha del hecho: {fecha_hecho.strftime('%d/%m/%Y')}
+Normativa aplicable: Código Penal Colombiano (Ley 599 de 2000)
+
+CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal):
+- Término prescriptivo: {res_presc['anos_termino']} años.
+- ¿Hubo formulación de imputación?: {'SÍ (' + fecha_imputacion.strftime('%d/%m/%Y') + ')' if hubo_imputacion else 'NO'}
+- FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}
+
+1. PENA PRIVATIVA DE LA LIBERTAD (PRISIÓN):
+- Rango de movilidad aplicable: {res_prision['rango'][0]} meses a {res_prision['rango'][1]} meses.
+- Sistema de Cuartos Punitivos (Art. 61):
+"""
+        for nombre, (c_min, c_max) in res_prision["cuartos"].items():
+            texto_reporte += f"  * {nombre}: {c_min} a {c_max} meses\n"
+            
+        if aplica_multa and res_multa:
+            texto_reporte += f"""
+2. PENA PECUNIARIA (MULTA - Art. 39):
+- Rango de multa aplicable: {res_multa['rango'][0]} SMLMV a {res_multa['rango'][1]} SMLMV.
+- Equivalente en COP (${valor_smlmv:,.2f} por SMLMV): ${min_cop:,.2f} hasta ${max_cop:,.2f}.
+- Cuartos Punitivos (Multa):
+"""
+            for nombre, (c_min, c_max) in res_multa["cuartos"].items():
+                texto_reporte += f"  * {nombre}: {c_min} a {c_max} SMLMV\n"
+
+        st.text_area("Copia este texto para tus documentos:", value=texto_reporte, height=280)
