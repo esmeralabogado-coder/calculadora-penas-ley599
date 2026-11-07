@@ -1,467 +1,403 @@
 import streamlit as st
 import datetime
+
 from dateutil.relativedelta import relativedelta
 
-def meses_a_anos_meses(meses_float):
-    if meses_float <= 0:
-        return "0 meses"
-    total_dias = int(round(meses_float * 30.4375))
-    anos = total_dias // 365
-    dias_remanentes = total_dias % 365
-    meses = dias_remanentes // 30
-    dias = dias_remanentes % 30
-    
-    partes = []
-    if anos > 0:
-        partes.append(f"{anos} año{'s' if anos > 1 else ''}")
-    if meses > 0:
-        partes.append(f"{meses} mes{'es' if meses > 1 else ''}")
-    if dias > 0 and anos == 0:
-        partes.append(f"{dias} día{'s' if dias > 1 else ''}")
-        
-    return " y ".join(partes) if partes else "0 meses"
 
-def calcular_prescripcion(fecha_hecho, max_meses_pena, es_tentativa, hubo_imputacion, fecha_imputacion=None):
-    meses_base = max_meses_pena / 2.0 if es_tentativa else max_meses_pena
-    anos_prescripcion = meses_base / 12.0
-    
-    if anos_prescripcion < 5.0:
-        anos_prescripcion = 5.0
-        
-    anos_enteros = int(anos_prescripcion)
-    dias_restantes = int((anos_prescripcion - anos_enteros) * 365)
-    fecha_prescripcion_inicial = fecha_hecho + relativedelta(years=anos_enteros, days=dias_restantes)
-    
-    fecha_prescripcion_final = fecha_prescripcion_inicial
-    interrumpida = False
-    
-    if hubo_imputacion and fecha_imputacion:
-        interrumpida = True
-        termino_interrupcion_anos = anos_prescripcion / 2.0
-        if termino_interrupcion_anos < 3.0:
-            termino_interrupcion_anos = 3.0
-        elif termino_interrupcion_anos > 5.0:
-            termino_interrupcion_anos = 5.0
-            
-        anos_int = int(termino_interrupcion_anos)
-        dias_int = int((termino_interrupcion_anos - anos_int) * 365)
-        fecha_prescripcion_final = fecha_imputacion + relativedelta(years=anos_int, days=dias_int)
-        
+# ==================================================
+# FUNCIONES
+# ==================================================
+
+def meses_a_texto(meses):
+    meses = round(meses, 2)
+
+    anos = int(meses // 12)
+    resto = round(meses % 12, 2)
+
+    if anos > 0:
+        return f"{anos} años y {resto:.2f} meses"
+
+    return f"{resto:.2f} meses"
+
+
+def calcular_cuartos(minimo, maximo):
+
+    amplitud = maximo - minimo
+    cuarto = amplitud / 4
+
     return {
-        "anos_termino": round(anos_prescripcion, 2),
-        "fecha_inicial": fecha_prescripcion_inicial,
-        "interrumpida": interrumpida,
-        "fecha_final": fecha_prescripcion_final
+        "Primer Cuarto": (
+            round(minimo, 2),
+            round(minimo + cuarto, 2)
+        ),
+        "Segundo Cuarto": (
+            round(minimo + cuarto, 2),
+            round(minimo + cuarto * 2, 2)
+        ),
+        "Tercer Cuarto": (
+            round(minimo + cuarto * 2, 2),
+            round(minimo + cuarto * 3, 2)
+        ),
+        "Cuarto Cuarto": (
+            round(minimo + cuarto * 3, 2),
+            round(maximo, 2)
+        )
     }
 
-def calcular_penas_y_cuartos(
-    min_basico, max_basico, regla, prop1=0.0, prop2=None, 
-    es_calificado=False, calif_min_aumento=0.0, calif_max_aumento=0.0,
-    estado_especial="Ninguno",
-    es_concurso=False, aumento_concurso_min=0.0, aumento_concurso_max=0.0,
+
+def calcular_prescripcion(
+    fecha_hecho,
+    pena_maxima_meses,
     tentativa=False,
-    tipo_circ_especifica="Ninguna", frac_circ_min=0.0, frac_circ_max=0.0,
-    gen_atenuantes=False, gen_agravantes=False,
-    modalidad_rebaja="Ninguna", fase_allanamiento="", rebaja_pactada_pct=0.0
+    fecha_imputacion=None
 ):
-    min_trabajo = min_basico
-    max_trabajo = max_basico
-    
-    if es_calificado:
-        min_trabajo = min_basico + (min_basico * calif_min_aumento)
-        max_trabajo = max_basico + (max_basico * calif_max_aumento)
-
-    if estado_especial == "Ira o Intenso Dolor (Art. 57: Disminución de 1/6 a 1/2)":
-        min_trabajo = max(0.0, min_trabajo - (min_trabajo * 0.50)) 
-        max_trabajo = max(0.0, max_trabajo - (max_trabajo * (1/6))) 
-    elif estado_especial == "Marginalidad, Ignorancia o Pobreza Extrema (Art. 56: Disminución de 1/2 a 3/4)":
-        min_trabajo = max(0.0, min_trabajo - (min_trabajo * 0.75)) 
-        max_trabajo = max(0.0, max_trabajo - (max_trabajo * 0.50)) 
-
-    if es_concurso:
-        min_trabajo = min_trabajo + (min_trabajo * aumento_concurso_min)
-        max_trabajo = max_trabajo + (max_trabajo * aumento_concurso_max)
 
     if tentativa:
-        min_trabajo = min_trabajo * 0.25  
-        max_trabajo = max_trabajo * 0.50  
+        pena_maxima_meses *= 0.75
 
-    if tipo_circ_especifica == "Agravante específica (Aumento fraccionado)":
-        min_trabajo = min_trabajo + (min_trabajo * frac_circ_min)
-        max_trabajo = max_trabajo + (max_trabajo * frac_circ_max)
-    elif tipo_circ_especifica == "Atenuante específica (Disminución fraccionada)":
-        min_trabajo = max(0.0, min_trabajo - (min_trabajo * frac_circ_max))
-        max_trabajo = max(0.0, max_trabajo - (max_trabajo * frac_circ_min))
+    termino_anos = pena_maxima_meses / 12
 
-    if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
-        if "Imputación" in fase_allanamiento:
-            min_trabajo = min_trabajo * 0.50
-            max_trabajo = max_trabajo * 0.50
-        elif "Preparatoria" in fase_allanamiento:
-            min_trabajo = min_trabajo * (2/3)
-            max_trabajo = max_trabajo * (2/3)
-        elif "Juicio" in fase_allanamiento:
-            min_trabajo = min_trabajo * (4/5)
-            max_trabajo = max_trabajo * (4/5)
-            
-    elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
-        factor_descuento = (100.0 - rebaja_pactada_pct) / 100.0
-        min_trabajo = min_trabajo * factor_descuento
-        max_trabajo = max_trabajo * factor_descuento
+    if termino_anos < 5:
+        termino_anos = 5
 
-    if modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)":
-        if regla == 0:
-            nuevo_min = min_trabajo
-            nuevo_max = max_trabajo
-        elif regla == 1:
-            nuevo_min = min_trabajo + (min_trabajo * prop1)
-            nuevo_max = max_trabajo + (max_trabajo * prop1)
-        elif regla == 2:
-            nuevo_min = min_trabajo
-            nuevo_max = max_trabajo + (max_trabajo * prop1)
-        elif regla == 3:
-            nuevo_min = min_trabajo - (min_trabajo * prop1)
-            nuevo_max = max_trabajo
-        elif regla == 4:
-            menor = min(prop1, prop2 if prop2 is not None else 0.0)
-            mayor = max(prop1, prop2 if prop2 is not None else 0.0)
-            nuevo_min = min_trabajo + (min_trabajo * menor)
-            nuevo_max = max_trabajo + (max_trabajo * mayor)
-        elif regla == 5:
-            menor = min(prop1, prop2 if prop2 is not None else 0.0)
-            mayor = max(prop1, prop2 if prop2 is not None else 0.0)
-            nuevo_min = min_trabajo - (min_trabajo * mayor)
-            nuevo_max = max_trabajo - (max_trabajo * menor)
-    else:
-        nuevo_min = min_trabajo
-        nuevo_max = max_trabajo
-    
-    nuevo_min = max(0.0, nuevo_min)
-    nuevo_max = max(0.0, nuevo_max)
-    
-    amplitud_total = nuevo_max - nuevo_min
-    cuarto_tam = amplitud_total / 4.0
+    fecha_inicial = fecha_hecho + relativedelta(
+        years=int(termino_anos)
+    )
 
-    c1 = (round(nuevo_min, 2), round(nuevo_min + cuarto_tam, 2))
-    c2 = (round(nuevo_min + cuarto_tam, 2), round(nuevo_min + 2*cuarto_tam, 2))
-    c3 = (round(nuevo_min + 2*cuarto_tam, 2), round(nuevo_min + 3*cuarto_tam, 2))
-    c4 = (round(nuevo_min + 3*cuarto_tam, 2), round(nuevo_max, 2))
+    fecha_final = fecha_inicial
 
-    if gen_agravantes and not gen_atenuantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)":
-        cuartos_dict = {
-            "Segundo cuarto (Medio 1)": c2,
-            "Tercer cuarto (Medio 2)": c3,
-            "Cuarto cuarto (Máximo)": c4,
-            "(Primer cuarto excluido por Art. 61)": c1
-        }
-    elif gen_atenuantes and not gen_agravantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)":
-        cuartos_dict = {
-            "Primer cuarto (Mínimo - Atenuado)": c1,
-            "Segundo cuarto (Medio 1)": c2,
-            "Tercer cuarto (Medio 2)": c3,
-            "(Cuarto cuarto desplazado)": c4
-        }
-    else:
-        if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
-            cuartos_dict = {
-                "Pena Fija / Rango Pactado en Preacuerdo": (round(nuevo_min, 2), round(nuevo_max, 2))
-            }
-        else:
-            cuartos_dict = {
-                "Primer cuarto (Mínimo)": c1,
-                "Segundo cuarto (Medio 1)": c2,
-                "Tercer cuarto (Medio 2)": c3,
-                "Cuarto cuarto (Máximo)": c4,
-            }
-    
+    if fecha_imputacion:
+
+        nuevo_termino = termino_anos / 2
+
+        if nuevo_termino < 3:
+            nuevo_termino = 3
+
+        if nuevo_termino > 5:
+            nuevo_termino = 5
+
+        fecha_final = fecha_imputacion + relativedelta(
+            years=int(nuevo_termino)
+        )
+
     return {
-        "rango": (round(nuevo_min, 2), round(nuevo_max, 2)),
-        "cuartos": cuartos_dict
+        "termino": round(termino_anos, 2),
+        "fecha": fecha_final
     }
 
-st.set_page_config(page_title="Individualización de Penas", page_icon="⚖️")
 
-st.title("⚖️ Calculadora Integral de Penas, Cuartos y Prescripción")
-st.caption("Conforme al Código Penal Colombiano (Ley 599 de 2000) y Ley 906 de 2004")
+# ==================================================
+# CATALOGO DELITOS
+# ==================================================
 
-st.sidebar.header("📋 Parámetros del Caso")
+DELITOS = {
 
-fecha_hecho = st.sidebar.date_input("Fecha del hecho delictivo", value=datetime.date(2026, 1, 1))
+    "Personalizado":
+        (108, 360),
 
-st.sidebar.subheader("⏳ Control de Prescripción (Art. 83 y 86)")
-hubo_imputacion = st.sidebar.checkbox("¿Se formuló imputación de cargos?")
-fecha_imputacion = None
-if hubo_imputacion:
-    fecha_imputacion = st.sidebar.date_input("Fecha de la formulación de imputación", value=datetime.date(2026, 6, 1))
+    "Homicidio Simple":
+        (153, 450),
 
-aplica_multa = st.sidebar.checkbox("¿El tipo penal incluye pena de multa? (Art. 39)")
+    "Homicidio Agravado":
+        (400, 600),
 
-delitos_catalogo = {
-    "Personalizado (Ingresar manualmente)": (108.0, 360.0),
-    "Homicidio Simple (Art. 103)": (153.0, 450.0),
-    "Homicidio Agravado (Art. 104)": (400.0, 600.0),
-    "Fabricación, tráfico y porte de armas (Art. 365)": (108.0, 216.0),
-    "Tráfico, fabricación o porte de estupefacientes (Art. 376)": (128.0, 360.0),
-    "Hurto Calificado y Agravado (Arts. 239-241)": (72.0, 216.0),
-    "Extorsión (Art. 244)": (192.0, 288.0),
-    "Secuestro Simple (Art. 168)": (192.0, 360.0),
-    "Peculado por apropiación (Art. 397)": (96.0, 216.0),
-    "Cohecho propio (Art. 405)": (80.0, 144.0),
-    "Acceso carnal violento (Art. 205)": (144.0, 252.0)
+    "Porte Ilegal de Armas":
+        (108, 216),
+
+    "Estupefacientes":
+        (128, 360),
+
+    "Hurto Calificado":
+        (72, 216),
+
+    "Extorsión":
+        (192, 288),
+
+    "Secuestro":
+        (192, 360),
+
+    "Peculado":
+        (96, 216),
+
+    "Acceso Carnal Violento":
+        (144, 252)
 }
 
-st.sidebar.subheader("🔒 Selección de Delitos y Concurso (Art. 31)")
-modo_concurso = st.sidebar.radio(
-    "Modalidad delictiva:",
-    options=["Delito Único", "Concurso de Conductas (Múltiples delitos)"]
+# ==================================================
+# CONFIGURACION
+# ==================================================
+
+st.set_page_config(
+    page_title="Calculadora Penal Colombia",
+    page_icon="⚖️",
+    layout="wide"
 )
 
-min_basico, max_basico = 108.0, 360.0
-aumento_concurso_min, aumento_concurso_max = 0.0, 0.0
-es_concurso = False
+st.title("⚖️ Calculadora Penal Colombiana")
+st.caption(
+    "Ley 599 de 2000 - Versión Simplificada"
+)
 
-if modo_concurso == "Delito Único":
-    delito_sel = st.sidebar.selectbox("Seleccione el delito:", options=list(delitos_catalogo.keys()))
-    if delito_sel == "Personalizado (Ingresar manualmente)":
-        min_basico = st.sidebar.number_input("Pena Mínima Básica (meses)", min_value=0.0, value=108.0, step=1.0)
-        max_basico = st.sidebar.number_input("Pena Máxima Básica (meses)", min_value=0.0, value=360.0, step=1.0)
-    else:
-        min_basico, max_basico = delitos_catalogo[delito_sel]
-        st.sidebar.info(f"Pena básica legal: {min_basico} a {max_basico} meses ({meses_a_anos_meses(min_basico)} a {meses_a_anos_meses(max_basico)})")
+# ==================================================
+# SIDEBAR
+# ==================================================
+
+st.sidebar.header("Parámetros")
+
+fecha_hecho = st.sidebar.date_input(
+    "Fecha del Hecho",
+    value=datetime.date.today()
+)
+
+delito = st.sidebar.selectbox(
+    "Delito",
+    list(DELITOS.keys())
+)
+
+if delito == "Personalizado":
+
+    minimo = st.sidebar.number_input(
+        "Pena mínima",
+        value=108.0
+    )
+
+    maximo = st.sidebar.number_input(
+        "Pena máxima",
+        value=360.0
+    )
+
 else:
-    es_concurso = True
-    st.sidebar.markdown("### Tasación de Delitos en Concurso")
-    num_delitos = st.sidebar.number_input("Número de delitos concurrentes", min_value=2, max_value=5, value=2)
-    
-    max_pena_encontrada = 0.0
-    min_pena_asociada = 0.0
-    
-    for i in range(1, int(num_delitos) + 1):
-        st.sidebar.markdown(f"**Delito #{i}**")
-        d_sel = st.sidebar.selectbox(f"Tipo penal #{i}", options=list(delitos_catalogo.keys()), key=f"delito_{i}")
-        if d_sel == "Personalizado (Ingresar manualmente)":
-            d_min = st.sidebar.number_input(f"Mínimo #{i} (meses)", min_value=0.0, value=36.0, step=1.0, key=f"min_{i}")
-            d_max = st.sidebar.number_input(f"Máximo #{i} (meses)", min_value=0.0, value=120.0, step=1.0, key=f"max_{i}")
-        else:
-            d_min, d_max = delitos_catalogo[d_sel]
-            st.sidebar.text(f"Rango: {d_min} a {d_max} meses")
-            
-        if d_max > max_pena_encontrada:
-            max_pena_encontrada = d_max
-            min_pena_asociada = d_min
-            
-    min_basico = min_pena_asociada
-    max_basico = max_pena_encontrada
-    st.sidebar.success(f"⚖️ **Delito mayor entidad base:** {min_basico} a {max_basico} meses.")
-    
-    aumento_concurso_min = st.sidebar.number_input("Fracción incremento mín concurso", min_value=0.0, value=0.5, step=0.1)
-    aumento_concurso_max = st.sidebar.number_input("Fracción incremento máx concurso", min_value=0.0, value=1.0, step=0.1)
 
-st.sidebar.subheader("🔺 Circunstancias Calificantes")
-es_calificado = st.sidebar.checkbox("¿Es tipo calificado / agravante de entrada?")
-calif_min_aumento, calif_max_aumento = 0.0, 0.0
-if es_calificado:
-    calif_min_aumento = st.sidebar.number_input("Incremento mín al básico", min_value=0.0, value=0.5, step=0.1)
-    calif_max_aumento = st.sidebar.number_input("Incremento máx al básico", min_value=0.0, value=1.0, step=0.1)
+    minimo, maximo = DELITOS[delito]
 
-st.sidebar.subheader("🔥 Atenuantes Especiales")
-estado_especial = st.sidebar.selectbox(
-    "Seleccione estado especial:",
-    options=[
-        "Ninguno",
-        "Ira o Intenso Dolor (Art. 57: Disminución de 1/6 a 1/2)",
-        "Marginalidad, Ignorancia o Pobreza Extrema (Art. 56: Disminución de 1/2 a 3/4)"
-    ]
+st.sidebar.markdown("---")
+
+tentativa = st.sidebar.checkbox(
+    "Tentativa (Art. 27)"
 )
 
-st.sidebar.subheader("🎯 Fase de Ejecución")
-es_tentativa = st.sidebar.checkbox("¿Es conducta tentada? (Art. 27)")
-
-st.sidebar.subheader("📌 Circunstancias Específicas")
-tipo_circ_especifica = st.sidebar.selectbox(
-    "Modificadores específicos:",
-    options=["Ninguna", "Agravante específica (Aumento fraccionado)", "Atenuante específica (Disminución fraccionada)"]
+concurso = st.sidebar.checkbox(
+    "Concurso de Conductas"
 )
-frac_circ_min, frac_circ_max = 0.0, 0.0
-if tipo_circ_especifica != "Ninguna":
-    frac_circ_min = st.sidebar.number_input("Fracción inferior", min_value=0.0, max_value=2.0, value=0.33, step=0.01)
-    frac_circ_max = st.sidebar.number_input("Fracción superior", min_value=0.0, max_value=2.0, value=0.50, step=0.01)
 
-st.sidebar.subheader("⚖️ Circunstancias Genéricas (Art. 55 y 58)")
-gen_atenuantes = st.sidebar.checkbox("Concurren atenuantes genéricas (Art. 55)")
-gen_agravantes = st.sidebar.checkbox("Concurren agravantes genéricas (Art. 58 - Excluye 1er cuarto)")
+if concurso:
 
-min_multa, max_multa = 0.0, 0.0
-valor_smlmv = 1423500.0  
+    incremento = st.sidebar.slider(
+        "Aumento Concurso (%)",
+        0,
+        300,
+        50
+    )
+
+else:
+    incremento = 0
+
+st.sidebar.markdown("---")
+
+atenuantes = st.sidebar.checkbox(
+    "Atenuantes Genéricas"
+)
+
+agravantes = st.sidebar.checkbox(
+    "Agravantes Genéricas"
+)
+
+st.sidebar.markdown("---")
+
+aplica_multa = st.sidebar.checkbox(
+    "Tiene pena de multa"
+)
+
 if aplica_multa:
-    st.sidebar.subheader("💰 Pena Pecuniaria (Multa)")
-    min_multa = st.sidebar.number_input("Multa Mínima Básica (SMLMV)", min_value=0.0, value=133.33, step=10.0)
-    max_multa = st.sidebar.number_input("Multa Máxima Básica (SMLMV)", min_value=0.0, value=1500.0, step=10.0)
-    valor_smlmv = st.sidebar.number_input("Valor SMLMV (COP)", min_value=0.0, value=1423500.0, step=10000.0)
 
-st.sidebar.subheader("🤝 Terminación Anticipada")
-modalidad_rebaja = st.sidebar.radio(
-    "Modalidad de rebaja:",
-    options=["Ninguna", "Allanamiento unilateral (Fases legales)", "Preacuerdo pactado (Porcentaje negociado)"]
+    multa_min = st.sidebar.number_input(
+        "Multa mínima SMLMV",
+        value=100.0
+    )
+
+    multa_max = st.sidebar.number_input(
+        "Multa máxima SMLMV",
+        value=1000.0
+    )
+
+else:
+
+    multa_min = 0
+    multa_max = 0
+
+st.sidebar.markdown("---")
+
+hubo_imputacion = st.sidebar.checkbox(
+    "Hubo Imputación"
 )
 
-fase_allanamiento = ""
-rebaja_pactada_pct = 0.0
+fecha_imputacion = None
 
-if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
-    fase_allanamiento = st.sidebar.selectbox(
-        "Fase Procesal",
-        options=[
-            "Hasta formulación de imputación (Rebaja hasta 1/2)",
-            "Hasta antes de audiencia preparatoria (Rebaja hasta 1/3)",
-            "Hasta inicio del juicio oral (Rebaja hasta 1/5)"
-        ]
-    )
-elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
-    rebaja_pactada_pct = st.sidebar.number_input(
-        "Porcentaje de rebaja pactado (%)",
-        min_value=0.0,
-        max_value=100.0,
-        value=35.0,
-        step=1.0
+if hubo_imputacion:
+
+    fecha_imputacion = st.sidebar.date_input(
+        "Fecha Imputación",
+        value=datetime.date.today()
     )
 
-st.sidebar.subheader("📊 Reglas de Modificación (Art. 61)")
-reglas_dict = {
-    0: "0. Sin regla (Límites básicos / post-ajustes)",
-    1: "1. Aumento/Disminución proporcional al mín y máx",
-    2: "2. Aumento hasta en una proporción al máx",
-    3: "3. Disminución hasta en una proporción al mín",
-    4: "4. Aumento en dos proporciones",
-    5: "5. Disminución en dos proporciones"
-}
+# ==================================================
+# CALCULAR
+# ==================================================
 
-regla_sel = st.sidebar.selectbox("Seleccione la Regla", options=list(reglas_dict.keys()), format_func=lambda x: reglas_dict[x])
+if st.sidebar.button("CALCULAR"):
 
-prop1, prop2 = 0.0, 0.0
-if regla_sel in [1, 2, 3]:
-    prop1 = st.sidebar.number_input("Proporción", min_value=0.0, max_value=1.0, value=0.3333, step=0.01)
-elif regla_sel in [4, 5]:
-    prop1 = st.sidebar.number_input("Primera Proporción", min_value=0.0, max_value=1.0, value=0.3333, step=0.01)
-    prop2 = st.sidebar.number_input("Segunda Proporción", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
+    min_calc = minimo
+    max_calc = maximo
 
-if st.sidebar.button("Calcular individualización"):
-    if min_basico > max_basico:
-        st.error("El límite mínimo de prisión no puede superar el límite máximo.")
-    elif aplica_multa and min_multa > max_multa:
-        st.error("El límite mínimo de multa no puede superar el máximo.")
-    else:
-        st.success(f"📅 Fecha del hecho delictivo registrada: {fecha_hecho.strftime('%d/%m/%Y')}")
-        
-        res_presc = calcular_prescripcion(fecha_hecho, max_basico, es_tentativa, hubo_imputacion, fecha_imputacion)
-        
-        st.header("⏳ Análisis de Prescripción y Extinción de la Acción Penal")
-        st.info(f"Término prescriptivo aplicable: {res_presc['anos_termino']} años (Conforme a pena máxima y tentativa).")
-        if res_presc['interrumpida']:
-            st.warning(f"⚠️ Término interrumpido por Formulación de Imputación el {fecha_imputacion.strftime('%d/%m/%Y')}.")
-            st.error(f"🚨 Fecha fatídica de Prescripción (Extinción de la Acción Penal): {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
-        else:
-            st.error(f"🚨 Fecha fatídica de Prescripción (Extinción de la Acción Penal): {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
+    # Tentativa
 
-        st.markdown("---")
+    if tentativa:
 
-        res_prision = calcular_penas_y_cuartos(
-            min_basico, max_basico, regla_sel, prop1, prop2, 
-            es_calificado, calif_min_aumento, calif_max_aumento,
-            estado_especial,
-            es_concurso, aumento_concurso_min, aumento_concurso_max,
-            es_tentativa,
-            tipo_circ_especifica, frac_circ_min, frac_circ_max,
-            gen_atenuantes, gen_agravantes,
-            modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct
+        min_calc *= 0.50
+        max_calc *= 0.75
+
+    # Concurso
+
+    if concurso:
+
+        factor = incremento / 100
+
+        min_calc += min_calc * factor
+        max_calc += max_calc * factor
+
+    # Atenuantes
+
+    if atenuantes and not agravantes:
+
+        max_calc *= 0.75
+
+    # Agravantes
+
+    if agravantes and not atenuantes:
+
+        min_calc *= 1.25
+
+    min_calc = round(min_calc, 2)
+    max_calc = round(max_calc, 2)
+
+    cuartos = calcular_cuartos(
+        min_calc,
+        max_calc
+    )
+
+    prescripcion = calcular_prescripcion(
+        fecha_hecho,
+        max_calc,
+        tentativa,
+        fecha_imputacion
+    )
+
+    # ==================================================
+    # RESULTADOS
+    # ==================================================
+
+    st.header("Resultado")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.metric(
+            "Pena mínima",
+            f"{min_calc} meses"
         )
-        
-        st.header("🔒 1. Pena Privativa de la Libertad (Prisión)")
-        notas_ajuste = []
-        if es_calificado: notas_ajuste.append("Tipo Calificado / Agravante de Entrada")
-        if estado_especial != "Ninguno": notas_ajuste.append(estado_especial)
-        if es_concurso: notas_ajuste.append("Concurso de Delitos (Art. 31 - Mayor Entidad)")
-        if gen_agravantes and not gen_atenuantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)": 
-            notas_ajuste.append("Agravantes Genéricas (Art. 61 - Se excluye 1er cuarto)")
-        if gen_atenuantes and not gen_agravantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)": 
-            notas_ajuste.append("Atenuantes Genéricas (Art. 61)")
-        if tipo_circ_especifica != "Ninguna": notas_ajuste.append(tipo_circ_especifica)
-        if es_tentativa: notas_ajuste.append("Tentativa (Art. 27)")
-        if modalidad_rebaja != "Ninguna": notas_ajuste.append(modalidad_rebaja)
-        
-        if notas_ajuste:
-            st.warning(f"⚠️ Ajustes aplicados: {', '.join(notas_ajuste)}.")
-            
-        r_min_meses, r_max_meses = res_prision['rango']
-        st.info(f"Límite Aplicable: {r_min_meses} - {r_max_meses} meses ({meses_a_anos_meses(r_min_meses)} a {meses_a_anos_meses(r_max_meses)})")
-        
-        titulo_seccion_prision = "📊 Rango Definitivo Pactado en Preacuerdo" if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)" else "📊 Sistema de Cuartos Punitivos (Prisión)"
-        st.subheader(titulo_seccion_prision)
-        
-        cols = st.columns(2)
-        idx = 0
-        for nombre, (c_min, c_max) in res_prision["cuartos"].items():
-            with cols[idx % 2]:
-                st.metric(label=nombre, value=f"{c_min} - {c_max} m", delta=f"{meses_a_anos_meses(c_min)} a {meses_a_anos_meses(c_max)}")
-            idx += 1
-            
-        res_multa = None
-        if aplica_multa:
-            st.markdown("---")
-            res_multa = calcular_penas_y_cuartos(
-                min_multa, max_multa, regla_sel, prop1, prop2, 
-                es_tentativa, modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct,
-                es_concurso, aumento_concurso_min, aumento_concurso_max,
-                tipo_circ_especifica, frac_circ_min, frac_circ_max,
-                gen_atenuantes, gen_agravantes,
-                modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct
-            )
-            
-            st.header("💰 2. Pena Pecuniaria (Multa - Art. 39)")
-            st.info(f"Límite Multa Aplicable: {res_multa['rango'][0]} SMLMV a {res_multa['rango'][1]} SMLMV")
-            
-            min_cop = res_multa['rango'][0] * valor_smlmv
-            max_cop = res_multa['rango'][1] * valor_smlmv
-            st.caption(f"💵 Equivalente aproximado en pesos (COP): ${min_cop:,.2f} hasta ${max_cop:,.2f}")
-            
-            titulo_seccion_multa = "📊 Rango Definitivo de Multa Pactada" if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)" else "📊 Sistema de Cuartos Punitivos (Multa en SMLMV)"
-            st.subheader(titulo_seccion_multa)
-            
-            cols_m = st.columns(2)
-            idx_m = 0
-            for nombre, (c_min, c_max) in res_multa["cuartos"].items():
-                with cols_m[idx_m % 2]:
-                    st.metric(label=nombre, value=f"{c_min} - {c_max} SMLMV")
-                idx_m += 1
 
-        st.markdown("---")
-        st.subheader("📑 Resumen para Memoriales / Informes")
-        
-        texto_reporte = f"""INFORME DE DOSIFICACIÓN Y PRESCRIPCIÓN
-Fecha del hecho: {fecha_hecho.strftime('%d/%m/%Y')}
-Normativa aplicable: Código Penal Colombiano (Ley 599 de 2000)
+    with col2:
 
-CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal):
-- Término prescriptivo: {res_presc['anos_termino']} años.
-- ¿Hubo formulación de imputación?: {'SÍ (' + fecha_imputacion.strftime('%d/%m/%Y') + ')' if hubo_imputacion else 'NO'}
-- FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}
+        st.metric(
+            "Pena máxima",
+            f"{max_calc} meses"
+        )
 
-1. PENA PRIVATIVA DE LA LIBERTAD (PRISIÓN):
-- Modalidad: {"Concurso de Conductas Punibles" if es_concurso else "Delito Único"} / {modalidad_rebaja}
-- Rango o pena aplicable: {res_prision['rango'][0]} a {res_prision['rango'][1]} meses ({meses_a_anos_meses(res_prision['rango'][0])} a {meses_a_anos_meses(res_prision['rango'][1]}).
+    st.info(
+        f"{meses_a_texto(min_calc)} "
+        f"a "
+        f"{meses_a_texto(max_calc)}"
+    )
+
+    st.subheader("Cuartos punitivos")
+
+    for nombre, valores in cuartos.items():
+
+        st.write(
+            f"**{nombre}:** "
+            f"{valores[0]} "
+            f"a "
+            f"{valores[1]} meses"
+        )
+
+    st.subheader("Prescripción")
+
+    st.success(
+        f"Término: "
+        f"{prescripcion['termino']} años"
+    )
+
+    st.error(
+        f"Fecha de prescripción: "
+        f"{prescripcion['fecha'].strftime('%d/%m/%Y')}"
+    )
+
+    if aplica_multa:
+
+        st.subheader("Multa")
+
+        st.write(
+            f"{multa_min} "
+            f"a "
+            f"{multa_max} SMLMV"
+        )
+
+    st.subheader("Informe")
+
+    informe = f"""
+INFORME DE DOSIFICACIÓN PENAL
+
+Delito: {delito}
+
+Fecha del hecho:
+{fecha_hecho.strftime('%d/%m/%Y')}
+
+Pena aplicable:
+
+Mínimo:
+{min_calc} meses
+
+Máximo:
+{max_calc} meses
+
+Equivalencia:
+
+{meses_a_texto(min_calc)}
+a
+{meses_a_texto(max_calc)}
+
+Prescripción:
+
+{prescripcion['termino']} años
+
+Fecha de prescripción:
+
+{prescripcion['fecha'].strftime('%d/%m/%Y')}
+
+Circunstancias aplicadas:
+
+Tentativa: {'SI' if tentativa else 'NO'}
+
+Concurso: {'SI' if concurso else 'NO'}
+
+Atenuantes: {'SI' if atenuantes else 'NO'}
+
+Agravantes: {'SI' if agravantes else 'NO'}
 """
-        if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
-            texto_reporte += f"- Nota: Al tratarse de preacuerdo, no opera el sistema de cuartos punitivos (Jurisprudencia CSJ).\n"
-        else:
-            texto_reporte += f"- Sistema de Cuartos Punitivos (Art. 61):\n"
-            for nombre, (c_min, c_max) in res_prision["cuartos"].items():
-                texto_reporte += f"  * {nombre}: {c_min} a {c_max} meses ({meses_a_anos_meses(c_min)} a {meses_a_anos_meses(c_max)})\n"
-            
-        if aplica_multa and res_multa:
-            texto_reporte += f"""
-2. PENA PECUNIARIA (MULTA - Art. 39):
-- Rango de multa aplicable: {res_multa['rango'][0]} SMLMV a {res_multa['rango'][1]} SMLMV.
-- Equivalente en COP (${valor_smlmv:,.2f} por SMLMV): ${min_cop:,.2f} hasta ${max_cop:,.2f}.
-"""
 
-        st.text_area("Copia este texto para tus documentos:", value=texto_reporte, height=280)
+    st.text_area(
+        "Copiar informe",
+        informe,
+        height=350
+    )
