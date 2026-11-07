@@ -22,7 +22,6 @@ def meses_a_anos_meses(meses_float):
     return " y ".join(partes) if partes else "0 meses"
 
 def calcular_prescripcion(fecha_hecho, max_meses_pena, es_tentativa, hubo_imputacion, fecha_imputacion=None):
-    # Término base de prescripción: máximo de la pena (o la mitad si es tentativa), mínimo 5 años (Art. 83)
     meses_base = max_meses_pena / 2.0 if es_tentativa else max_meses_pena
     anos_prescripcion = meses_base / 12.0
     
@@ -39,7 +38,6 @@ def calcular_prescripcion(fecha_hecho, max_meses_pena, es_tentativa, hubo_imputa
     
     if hubo_imputacion and fecha_imputacion:
         interrumpida = True
-        # Regla Art. 86: Empieza a correr de nuevo por la mitad del término inicial (mínimo 3, máximo 5 años)
         anos_interrupcion = anos_prescripcion / 2.0
         if anos_interrupcion < 3.0:
             anos_interrupcion = 3.0
@@ -95,7 +93,7 @@ def calcular_penas_y_cuartos(
         max_trabajo = max_trabajo + (max_trabajo * frac_circ_max)
     elif tipo_circ_especifica == "Atenuante específica (Disminución fraccionada)":
         min_trabajo = max(0.0, min_trabajo - (min_trabajo * frac_circ_max))
-        max_trabajo = max(0.0, max_trabajo - (min_trabajo * frac_circ_min))
+        max_trabajo = max(0.0, max_trabajo - (max_trabajo * frac_circ_min))
 
     if modalidad_rebaja == "Ninguna":
         if regla == 0:
@@ -125,13 +123,13 @@ def calcular_penas_y_cuartos(
         nuevo_max = max_trabajo
 
     if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
-        if "Imputación" in fase_allanamiento:
+        if "imputación" in fase_allanamiento.lower() or "1/2" in fase_allanamiento:
             nuevo_min = nuevo_min * 0.50
             nuevo_max = nuevo_max * 0.50
-        elif "Preparatoria" in fase_allanamiento:
+        elif "preparatoria" in fase_allanamiento.lower() or "1/3" in fase_allanamiento:
             nuevo_min = nuevo_min * (2/3) 
             nuevo_max = nuevo_max * (2/3)
-        elif "Juicio" in fase_allanamiento:
+        elif "juicio" in fase_allanamiento.lower() or "1/5" in fase_allanamiento:
             nuevo_min = nuevo_min * (4/5) 
             nuevo_max = nuevo_max * (4/5)
             
@@ -343,7 +341,9 @@ if st.sidebar.button("Calcular individualización"):
             notas_ajuste.append("Atenuantes Genéricas (Art. 61)")
         if tipo_circ_especifica != "Ninguna": notas_ajuste.append(tipo_circ_especifica)
         if es_tentativa: notas_ajuste.append("Tentativa (Art. 27)")
-        if modalidad_rebaja != "Ninguna": notas_ajuste.append(f"Terminación Anticipada: {modalidad_rebaja} ({fase_allanamiento if fase_allanamiento else str(rebaja_pactada_pct) + '%'})")
+        if modalidad_rebaja != "Ninguna": 
+            detalle_rebaja = fase_allanamiento if modalidad_rebaja == "Allanamiento unilateral (Fases legales)" else f"Preacuerdo del {rebaja_pactada_pct}%"
+            notas_ajuste.append(f"Terminación Anticipada: {detalle_rebaja}")
         
         if notas_ajuste:
             st.warning(f"⚠️ Ajustes aplicados: {', '.join(notas_ajuste)}.")
@@ -399,6 +399,8 @@ if st.sidebar.button("Calcular individualización"):
         st.markdown("---")
         st.subheader("📑 Resumen para Memoriales / Informes")
         
+        texto_etapa_reporte = f"{fase_allanamiento}" if modalidad_rebaja == "Allanamiento unilateral (Fases legales)" else (f"Preacuerdo pactado del {rebaja_pactada_pct}%" if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)" else "Juicio Ordinario (Sin rebaja)")
+
         texto_reporte = f"""INFORME DE DOSIFICACIÓN Y PRESCRIPCIÓN
 Fecha del hecho: {fecha_hecho.strftime('%d/%m/%Y')}
 Normativa aplicable: Código Penal Colombiano (Ley 599 de 2000)
@@ -409,7 +411,8 @@ CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal - Arts. 83 y 86):
 - FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}
 
 1. PENA PRIVATIVA DE LA LIBERTAD (PRISIÓN):
-- Modalidad: {modalidad_rebaja} ({fase_allanamiento if fase_allanamiento else ('Pactada: ' + str(rebaja_pactada_pct) + '%') if modalidad_rebaja != 'Ninguna' else 'Juicio Ordinario'})
+- Modalidad de terminación / defensa: {modalidad_rebaja}
+- Detalle de la etapa / rebaja aplicada: {texto_etapa_reporte}
 - Rango o pena aplicable (Mínimo y Máximo rebajados): {res_prision['rango'][0]} a {res_prision['rango'][1]} meses ({meses_a_anos_meses(res_prision['rango'][0])} a {meses_a_anos_meses(res_prision['rango'][1])}).
 """
         if modalidad_rebaja != "Ninguna":
