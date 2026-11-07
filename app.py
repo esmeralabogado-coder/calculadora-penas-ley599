@@ -59,12 +59,15 @@ def obtener_catalogo_delitos(fecha_hecho):
     
     if aplica_ley_890:
         catalogo = {
+            "--- CONFIGURACIÓN MANUAL ---": (0.0, 0.0, False, 0.0),
             "Personalizado (Ingresar límites manualmente)": (108.0, 360.0, False, 0.0),
             
-            # --- TÍTULO I: DELITOS CONTRA LA VIDA Y LA INTEGRIDAD PERSONAL ---
+            "--- TÍTULO I: DELITOS CONTRA LA VIDA Y LA INTEGRIDAD PERSONAL ---": (0.0, 0.0, False, 0.0),
             "Homicidio Simple (Art. 103)": (208.0, 450.0, False, 0.0),
             "Homicidio Agravado (Art. 104)": (400.0, 600.0, False, 0.0),
-            "Homicidio Piadoso (Art. 106)": (12.0, 54.0, False, 0.0),
+            "Homicidio piadoso (Art. 106)": (16.0, 54.0, False, 0.0),
+            "Inducción o ayuda al suicidio (Art. 107)": (24.0, 144.0, False, 0.0),
+            "Muerte de hijo fruto de acceso carnal violento (Art. 108)": (16.0, 54.0, False, 0.0),
             "Lesiones: Incapacidad < 30 días (Art. 112 inc. 1)": (16.0, 36.0, False, 0.0),
             "Lesiones: Incapacidad de 30 a 90 días (Art. 112 inc. 2)": (16.0, 54.0, True, 10.0),
             "Lesiones: Incapacidad > 90 días (Art. 112 inc. 3)": (32.0, 90.0, True, 13.33),
@@ -74,85 +77,108 @@ def obtener_catalogo_delitos(fecha_hecho):
             "Lesiones: Perturbación funcional permanente (Art. 114 inc. 2)": (48.0, 144.0, True, 26.66),
             "Lesiones: Perturbación psíquica transitoria (Art. 115 inc. 1)": (24.0, 126.0, True, 26.0),
             "Lesiones: Perturbación psíquica permanente (Art. 115 inc. 2)": (36.0, 150.0, True, 30.0),
-            "Lesiones: Pérdida anatómica/funcional órgano o miembro (Art. 116)": (72.0, 120.0, True, 25.0),
-            "Inasistencia Alimentaria (Art. 233)": (16.0, 54.0, True, 13.33),
-
-            # --- TÍTULO II: DELITOS CONTRA PERSONAS Y BIENES PROTEGIDOS POR DIH ---
-            "Genocidio (Art. 101)": (208.0, 450.0, False, 0.0),
-
-            # --- TÍTULO III: DELITOS CONTRA LA LIBERTAD INDIVIDUAL Y OTRAS GARANTÍAS ---
+            "Lesiones: Pérdida anatómica/funcional miembro u órgano (Art. 116)": (72.0, 120.0, True, 25.0),
+            "Aborto consentido (Art. 122)": (16.0, 54.0, False, 0.0),
+            "Aborto sin consentimiento (Art. 123)": (64.0, 180.0, False, 0.0),
+            "Lesiones al feto (Art. 127)": (16.0, 72.0, False, 0.0),
+            
+            "--- TÍTULO II: DELITOS CONTRA LA LIBERTAD, INTEGRIDAD Y FORMACIÓN SEXUALES ---": (0.0, 0.0, False, 0.0),
+            "Acceso carnal violento (Art. 205)": (144.0, 252.0, False, 0.0),
+            "Acto sexual violento (Art. 206)": (96.0, 180.0, False, 0.0),
+            "Acceso carnal abusivo con menor de 14 años (Art. 208)": (144.0, 252.0, False, 0.0),
+            "Acto sexual abusivo con menor de 14 años (Art. 209)": (108.0, 240.0, False, 0.0),
+            "Estupro (Art. 210)": (32.0, 72.0, False, 0.0),
+            "Pornografía infantil (Art. 218)": (96.0, 144.0, True, 100.0),
+            "Proxenetismo (Art. 213)": (32.0, 72.0, True, 13.33),
+            
+            "--- TÍTULO III: DELITOS CONTRA LA LIBERTAD INDIVIDUAL Y OTROS DERECHOS ---": (0.0, 0.0, False, 0.0),
             "Secuestro Simple (Art. 168)": (192.0, 360.0, True, 666.66),
-            "Secuestro Extorsivo (Art. 169)": (320.0, 500.0, True, 2666.66),
-            "Desaparición Forzada (Art. 165)": (400.0, 720.0, True, 1333.33),
-            "Constreñimiento Ilegal (Art. 182)": (16.0, 36.0, True, 13.33),
-            "Amenazas (Art. 347)": (16.0, 72.0, True, 13.33),
-
-            # --- TÍTULO IV: DELITOS CONTRA LA LIBERTAD, INTEGRIDAD Y FORMACIÓN SEXUALES ---
-            "Acceso Carnal Violento (Art. 205)": (144.0, 252.0, False, 0.0),
-            "Acto Sexual Violento (Art. 206)": (96.0, 180.0, False, 0.0),
-            "Acceso Carnal Abusivo con Menor de 14 años (Art. 208)": (144.0, 252.0, False, 0.0),
-
-            # --- TÍTULO VII: DELITOS CONTRA EL PATRIMONIO ECONÓMICO ---
-            "Hurto Simple (Art. 239)": (16.0, 108.0, True, 13.33),
-            "Hurto Calificado y Agravado (Arts. 239-241)": (72.0, 216.0, True, 13.33),
-            "Hurto Calificado Mínimo (Art. 240)": (36.0, 108.0, True, 13.33),
-            "Abuso de Confianza (Art. 249)": (16.0, 90.0, True, 13.33),
-            "Estafa (Art. 246)": (32.0, 144.0, True, 13.33),
+            "Secuestro Extorsivo (Art. 169)": (240.0, 420.0, True, 666.66),
+            "Desaparición forzada (Art. 165)": (400.0, 720.0, True, 800.0),
+            "Constreñimiento ilegal (Art. 182)": (16.0, 36.0, True, 10.0),
+            "Amenazas (Art. 347)": (16.0, 48.0, True, 13.33),
+            "Allanamiento indebido (Art. 189)": (16.0, 54.0, False, 0.0),
+            "Tortura (Art. 178)": (96.0, 180.0, False, 0.0),
+            
+            "--- TÍTULO IV: DELITOS CONTRA LA FAMILIA ---": (0.0, 0.0, False, 0.0),
+            "Inasistencia alimentaria (Art. 233)": (16.0, 54.0, True, 13.33),
+            "Violencia intrafamiliar (Art. 229)": (48.0, 108.0, False, 0.0),
+            "Adopción irregular (Art. 230)": (32.0, 96.0, False, 0.0),
+            "Incesto (Art. 236)": (16.0, 72.0, False, 0.0),
+            
+            "--- TÍTULO V: DELITOS CONTRA EL PATRIMONIO ECONÓMICO ---": (0.0, 0.0, False, 0.0),
+            "Hurto Simple (Art. 239)": (32.0, 108.0, True, 13.33),
+            "Hurto Calificado y Agravado (Arts. 239-241)": (72.0, 216.0, True, 15.0),
             "Extorsión (Art. 244)": (192.0, 288.0, True, 666.66),
-            "Receptación (Art. 447)": (48.0, 144.0, True, 6.66),
-            "Daño en Bien Ajeno (Art. 265)": (16.0, 72.0, True, 6.66),
-
-            # --- TÍTULO IX: DELITOS CONTRA LA FAMILIA ---
-            "Incesto (Art. 262)": (16.0, 72.0, False, 0.0),
-            "Adopción Irregular (Art. 230)": (32.0, 96.0, True, 13.33),
-
-            # --- TÍTULO X: DELITOS CONTRA LA ADMINISTRACIÓN PÚBLICA ---
-            "Peculado por Apropiación (Art. 397)": (96.0, 216.0, True, 0.0),
-            "Peculado por Uso (Art. 398)": (16.0, 72.0, True, 13.33),
-            "Peculado Culposo (Art. 400)": (16.0, 54.0, True, 13.33),
-            "Concusión (Art. 404)": (96.0, 180.0, True, 66.66),
-            "Cohecho Propio (Art. 405)": (80.0, 144.0, True, 66.66),
-            "Cohecho Impropio (Art. 406)": (48.0, 96.0, True, 33.33),
-            "Celebración indebida de contratos (Art. 410)": (64.0, 144.0, True, 66.66),
-            "Prevaricato por Acción (Art. 413)": (48.0, 144.0, False, 0.0),
-            "Prevaricato por Omisión (Art. 414)": (32.0, 90.0, False, 0.0),
-            "Abuso de Autoridad (Art. 416)": (16.0, 48.0, False, 0.0),
-            "Cohecho por dar u ofrecer (Art. 407)": (48.0, 108.0, True, 50.0),
-
-            # --- TÍTULO XI: DELITOS CONTRA LA FE PÚBLICA ---
-            "Falsedad Material en Documento Público (Art. 287)": (48.0, 108.0, True, 13.33),
-            "Falsedad en Documento Privado (Art. 289)": (16.0, 108.0, True, 13.33),
-            "Falsedad Personal (Art. 296)": (16.0, 36.0, False, 0.0),
-
-            # --- TÍTULO XII: DELITOS CONTRA EL ORDEN ECONÓMICO SOCIAL ---
-            "Lavado de Activos (Art. 323)": (120.0, 300.0, True, 650.0),
-            "Enriquecimiento Ilícito (Art. 327)": (96.0, 216.0, True, 133.33),
-
-            # --- TÍTULO XIII: DELITOS CONTRA LA SEGURIDAD PÚBLICA ---
-            "Fabricación, tráfico, porte de armas de fuego (Art. 365)": (108.0, 216.0, False, 0.0),
-            "Fabricación, tráfico y porte de armas de uso privativo (Art. 366)": (132.0, 276.0, False, 0.0),
-            "Concierto para delinquir (Art. 340)": (48.0, 108.0, False, 0.0),
-            "Concierto para delinquir agravado (Art. 340 inc. 2)": (96.0, 216.0, False, 0.0),
-            "Terrorismo (Art. 343)": (160.0, 270.0, True, 1333.33),
+            "Estafa (Art. 246)": (32.0, 144.0, True, 10.0),
+            "Abuso de confianza (Art. 249)": (16.0, 108.0, True, 10.0),
+            "Emisión y transferencia ilegal de cheques (Art. 248)": (16.0, 54.0, True, 10.0),
+            "Abuso de condiciones de inferioridad (Art. 251)": (16.0, 72.0, True, 10.0),
+            "Defraudación de fluidos (Art. 256)": (16.0, 72.0, True, 6.66),
+            "Usurapción (Art. 258)": (16.0, 48.0, True, 10.0),
+            "Daño en bien ajeno (Art. 265)": (16.0, 60.0, True, 6.66),
+            "Receptación (Art. 447)": (48.0, 108.0, True, 6.66),
+            "Abuso de confianza calificado": (32.0, 144.0, True, 15.0),
+            
+            "--- TÍTULO VII: DELITOS CONTRA LA FE PÚBLICA ---": (0.0, 0.0, False, 0.0),
+            "Falsificación de moneda nacional o extranjera (Art. 273)": (48.0, 144.0, True, 66.66),
+            "Falsedad ideológica en documento público (Art. 286)": (64.0, 144.0, True, 13.33),
+            "Falsedad material en documento público (Art. 287)": (48.0, 108.0, True, 13.33),
+            "Falsedad en documento privado (Art. 289)": (16.0, 108.0, False, 0.0),
+            "Uso de documento falso (Art. 291)": (16.0, 108.0, False, 0.0),
+            
+            "--- TÍTULO VIII: DELITOS CONTRA EL ORDEN ECONÓMICO SOCIAL ---": (0.0, 0.0, False, 0.0),
+            "Pánico económico (Art. 302)": (32.0, 96.0, True, 13.33),
+            "Urbanización ilegal (Art. 318)": (48.0, 108.0, True, 66.66),
+            "Contrabando (Art. 319)": (48.0, 108.0, True, 200.0),
+            "Lavado de activos (Art. 323)": (120.0, 300.0, True, 650.0),
+            "Enriquecimiento ilícito (Art. 327)": (96.0, 216.0, True, 150.0),
+            
+            "--- TÍTULO XII: DELITOS CONTRA LA SEGURIDAD PÚBLICA ---": (0.0, 0.0, False, 0.0),
+            "Concierto para delinquir (Art. 340 inc. 1)": (48.0, 108.0, False, 0.0),
+            "Concierto para delinquir agravado (Art. 340 inc. 2 y 3)": (96.0, 216.0, False, 0.0),
+            "Terrorismo (Art. 343)": (160.0, 270.0, True, 1000.0),
+            "Instigación a delinquir (Art. 348)": (16.0, 48.0, False, 0.0),
+            "Incendio (Art. 350)": (16.0, 144.0, True, 13.33),
+            "Fabricación, tráfico y porte de armas de fuego de defensa personal (Art. 365)": (108.0, 216.0, False, 0.0),
+            "Fabricación, tráfico y porte de armas de uso privativo (Art. 366)": (144.0, 312.0, False, 0.0),
             "Tráfico, fabricación o porte de estupefacientes (Art. 376)": (128.0, 360.0, True, 133.33),
-            "Destinación ilícita de bienes (Art. 377)": (72.0, 144.0, True, 133.33),
-
-            # --- TÍTULO XVIII: DELITOS CONTRA LA ADMINISTRACIÓN DE JUSTICIA ---
-            "Fuga de Presos (Art. 448)": (48.0, 108.0, False, 0.0),
-            "Falso Testimonio (Art. 442)": (72.0, 144.0, True, 66.66),
-            "Prevaricato (Defensa) / Fraude a Subvenciones": (48.0, 108.0, True, 13.33),
-            "Encubrimiento (Art. 446)": (16.0, 48.0, False, 0.0)
+            "Destinado a financiar grupos terroristas (Art. 377)": (144.0, 300.0, True, 1000.0),
+            
+            "--- TÍTULO XV: DELITOS CONTRA LA ADMINISTRACIÓN PÚBLICA ---": (0.0, 0.0, False, 0.0),
+            "Peculado por apropiación (Art. 397)": (96.0, 216.0, True, 0.0),
+            "Peculado por uso (Art. 398)": (16.0, 72.0, False, 0.0),
+            "Peculado por aplicación oficial diferente (Art. 399)": (16.0, 72.0, False, 0.0),
+            "Concusión (Art. 404)": (96.0, 180.0, True, 66.66),
+            "Cohecho propio (Art. 405)": (80.0, 144.0, True, 80.0),
+            "Cohecho impropio (Art. 406)": (48.0, 96.0, True, 50.0),
+            "Cohecho por dar u ofrecer (Art. 407)": (48.0, 96.0, True, 50.0),
+            "Celebración sin requisitos legales (Art. 410)": (64.0, 144.0, True, 66.66),
+            "Tráfico de influencias (Art. 411)": (64.0, 144.0, True, 66.66),
+            "Enriquecimiento ilícito de servidor público (Art. 412)": (96.0, 216.0, True, 150.0),
+            "Prevaricato por acción (Art. 413)": (48.0, 144.0, False, 0.0),
+            "Prevaricato por omisión (Art. 414)": (32.0, 96.0, False, 0.0),
+            "Abuso de autoridad por acto arbitrario (Art. 416)": (16.0, 48.0, False, 0.0),
+            "Prevaricato por omisión agravado": (48.0, 144.0, False, 0.0),
+            
+            "--- TÍTULO XVI: DELITOS CONTRA LA ADMINISTRACIÓN DE JUSTICIA ---": (0.0, 0.0, False, 0.0),
+            "Fuga de presos (Art. 448)": (48.0, 108.0, False, 0.0),
+            "Falso testimonio (Art. 442)": (72.0, 144.0, True, 66.66),
+            "Fraude procesal (Art. 453)": (72.0, 144.0, True, 66.66),
+            "Soborno en actuación penal (Art. 444)": (72.0, 144.0, True, 66.66),
+            "Ocultamiento, alteración o destrucción de elemento material (Art. 454)": (48.0, 108.0, True, 66.66),
+            "Favorecimiento (Art. 446)": (16.0, 72.0, False, 0.0),
+            "Falsa denuncia (Art. 435)": (16.0, 72.0, False, 0.0)
         }
     else:
-        # Catálogo histórico (anterior al 2005 - sin incremento Ley 890)
+        # Penas históricas originales (antes del incremento general de la Ley 890 de 2004)
         catalogo = {
+            "--- CONFIGURACIÓN MANUAL ---": (0.0, 0.0, False, 0.0),
             "Personalizado (Ingresar límites manualmente)": (72.0, 240.0, False, 0.0),
             "Homicidio Simple (Art. 103 - Original)": (156.0, 300.0, False, 0.0),
             "Homicidio Agravado (Art. 104 - Original)": (300.0, 480.0, False, 0.0),
-            "Secuestro Simple (Art. 168 - Original)": (96.0, 180.0, True, 500.0),
-            "Hurto Calificado (Art. 240 - Original)": (36.0, 120.0, True, 10.0),
-            "Fabricación y porte de armas (Art. 365 - Original)": (72.0, 144.0, False, 0.0),
-            "Peculado por apropiación (Art. 397 - Original)": (48.0, 108.0, True, 0.0)
+            "Lesiones: Incapacidad < 30 días (Art. 112 - Original)": (12.0, 24.0, False, 0.0),
+            "Fabricación, tráfico y porte de armas (Art. 365 - Original)": (72.0, 144.0, False, 0.0)
         }
     return catalogo, aplica_ley_890
 
@@ -300,6 +326,10 @@ if hubo_imputacion:
 st.sidebar.subheader("🔒 Selección de Delito y Prisión Básica")
 delito_sel = st.sidebar.selectbox("Seleccione el delito o tipo penal:", options=list(delitos_catalogo.keys()))
 
+if "---" in delito_sel:
+    st.sidebar.warning("⚠️ Por favor seleccione un delito válido de la lista desplegable.")
+    st.stop()
+
 min_cat, max_cat, tiene_multa_sugerida, val_multa_sug = delitos_catalogo[delito_sel]
 
 if "Personalizado" in delito_sel:
@@ -383,4 +413,166 @@ if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
     )
 elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
     rebaja_pactada_pct = st.sidebar.number_input(
-        "Porcentaje de reb
+        "Porcentaje de rebaja pactado (%)",
+        min_value=0.0,
+        max_value=100.0,
+        value=35.0,
+        step=1.0
+    )
+
+st.sidebar.subheader("📊 8. Reglas de Modificación (Art. 61)")
+reglas_dict = {
+    0: "0. Sin regla (Límites básicos / post-ajustes)",
+    1: "1. Aumento/Disminución proporcional al mín y máx",
+    2: "2. Aumento hasta en una proporción al máx",
+    3: "3. Disminución hasta en una proporción al mín",
+    4: "4. Aumento en dos proporciones",
+    5: "5. Disminución en dos proporciones"
+}
+
+regla_sel = st.sidebar.selectbox("Seleccione la Regla", options=list(reglas_dict.keys()), format_func=lambda x: reglas_dict[x])
+
+prop1, prop2 = 0.0, 0.0
+if regla_sel in [1, 2, 3]:
+    prop1 = st.sidebar.number_input("Proporción", min_value=0.0, max_value=1.0, value=0.3333, step=0.01)
+elif regla_sel in [4, 5]:
+    prop1 = st.sidebar.number_input("Primera Proporción", min_value=0.0, max_value=1.0, value=0.3333, step=0.01)
+    prop2 = st.sidebar.number_input("Segunda Proporción", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
+
+if st.sidebar.button("Calcular individualización"):
+    if min_basico > max_basico:
+        st.error("El límite mínimo de prisión no puede superar el límite máximo.")
+    elif aplica_multa and min_multa > max_multa:
+        st.error("El límite mínimo de multa no puede superar el máximo.")
+    else:
+        st.success(f"📅 Fecha del hecho delictivo registrada: {fecha_hecho.strftime('%d/%m/%Y')}")
+        
+        res_presc = calcular_prescripcion(fecha_hecho, max_basico, es_tentativa, hubo_imputacion, fecha_imputacion)
+        
+        st.header("⏳ Análisis de Prescripción y Extinción de la Acción Penal (Ley 906 / Ley 599)")
+        st.info(f"Término prescriptivo inicial: {res_presc['anos_termino']} años.")
+        if res_presc['interrumpida']:
+            st.warning(f"⚠️ Término interrumpido por Formulación de Imputación el {fecha_imputacion.strftime('%d/%m/%Y')}. Nuevo término de prescripción por la mitad del máximo ({res_presc['anos_interrupcion']} años, conforme al Art. 292 Ley 906).")
+            st.error(f"🚨 FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
+        else:
+            st.error(f"🚨 FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
+
+        st.markdown("---")
+
+        res_prision = calcular_penas_y_cuartos(
+            min_basico, max_basico, regla_sel, prop1, prop2, 
+            es_calificado, calif_min_aumento, calif_max_aumento,
+            estado_especial,
+            es_concurso, aumento_concurso_min, aumento_concurso_max,
+            es_tentativa,
+            tipo_circ_especifica, frac_circ_min, frac_circ_max,
+            gen_atenuantes, gen_agravantes,
+            modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct
+        )
+        
+        st.header("🔒 1. Pena Privativa de la Libertad (Prisión)")
+        notas_ajuste = []
+        notas_ajuste.append(f"Delito: {delito_sel}")
+        if es_calificado: notas_ajuste.append("Tipo Calificado / Agravante de Entrada")
+        if estado_especial != "Ninguno": notas_ajuste.append(estado_especial)
+        if es_concurso: notas_ajuste.append("Concurso de Delitos (Art. 31)")
+        if gen_agravantes and not gen_atenuantes: notas_ajuste.append("Agravantes Genéricas (Art. 61 - Se excluye 1er cuarto)")
+        if gen_atenuantes and not gen_agravantes: notas_ajuste.append("Atenuantes Genéricas (Art. 61)")
+        if tipo_circ_especifica != "Ninguna": notas_ajuste.append(tipo_circ_especifica)
+        if es_tentativa: notas_ajuste.append("Tentativa (Art. 27)")
+        if modalidad_rebaja != "Ninguna": 
+            detalle_rebaja = fase_allanamiento if modalidad_rebaja == "Allanamiento unilateral (Fases legales)" else f"Preacuerdo del {rebaja_pactada_pct}%"
+            notas_ajuste.append(f"Terminación Anticipada: {detalle_rebaja}")
+        
+        if notas_ajuste:
+            st.warning(f"⚠️ Parámetros aplicados: {', '.join(notas_ajuste)}.")
+            
+        st.subheader("📊 Cuartos Punitivos de Movilidad (Marco Ajustado)")
+        r_base_min, r_base_max = res_prision["rango_base"]
+        st.info(f"Marco punitivo de movilidad: {r_base_min} a {r_base_max} meses ({meses_a_anos_meses(r_base_min)} a {meses_a_anos_meses(r_base_max)})")
+        
+        cols = st.columns(2)
+        idx = 0
+        for nombre, (c_min, c_max) in res_prision["cuartos_base"].items():
+            with cols[idx % 2]:
+                st.metric(label=nombre, value=f"{c_min} - {c_max} m", delta=f"{meses_a_anos_meses(c_min)} a {meses_a_anos_meses(c_max)}")
+            idx += 1
+
+        if modalidad_rebaja != "Ninguna":
+            st.markdown("---")
+            r_reb_min, r_reb_max = res_prision["rango_rebajado"]
+            titulo_reb = "📉 Rango Definitivo Rebajado por Allanamiento (Mínimo y Máximo)" if modalidad_rebaja == "Allanamiento unilateral (Fases legales)" else "🤝 Rango Definitivo Pactado en Preacuerdo"
+            st.subheader(titulo_reb)
+            st.success(f"**{r_reb_min} a {r_reb_max} meses** ({meses_a_anos_meses(r_reb_min)} a {meses_a_anos_meses(r_reb_max)})")
+
+        res_multa = None
+        if aplica_multa and min_multa > 0:
+            st.markdown("---")
+            res_multa = calcular_penas_y_cuartos(
+                min_multa, max_multa, regla_sel, prop1, prop2, 
+                es_tentativa, modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct,
+                es_concurso, aumento_concurso_min, aumento_concurso_max,
+                tipo_circ_especifica, frac_circ_min, frac_circ_max,
+                gen_atenuantes, gen_agravantes,
+                modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct
+            )
+            
+            st.header("💰 2. Pena Pecuniaria (Multa - Art. 39)")
+            m_base_min, m_base_max = res_multa["rango_base"]
+            st.info(f"Límite Multa Marco Base: {m_base_min} SMLMV a {m_base_max} SMLMV")
+            
+            cols_m = st.columns(2)
+            idx_m = 0
+            for nombre, (c_min, c_max) in res_multa["cuartos_base"].items():
+                with cols_m[idx_m % 2]:
+                    st.metric(label=nombre, value=f"{c_min} - {c_max} SMLMV")
+                idx_m += 1
+                
+            if modalidad_rebaja != "Ninguna":
+                m_reb_min, m_reb_max = res_multa["rango_rebajado"]
+                min_cop = m_reb_min * valor_smlmv
+                max_cop = m_reb_max * valor_smlmv
+                st.success(f"📉 Multa Definitiva Rebajada: **{m_reb_min} a {m_reb_max} SMLMV** (Equivalente: ${min_cop:,.2f} - ${max_cop:,.2f})")
+            else:
+                min_cop = m_base_min * valor_smlmv
+                max_cop = m_base_max * valor_smlmv
+                st.caption(f"💵 Equivalente en COP (${valor_smlmv:,.2f} por SMLMV): ${min_cop:,.2f} hasta ${max_cop:,.2f}")
+
+        st.markdown("---")
+        st.subheader("📑 Resumen para Memoriales / Informes")
+        
+        texto_etapa_reporte = f"{fase_allanamiento}" if modalidad_rebaja == "Allanamiento unilateral (Fases legales)" else (f"Preacuerdo pactado del {rebaja_pactada_pct}%" if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)" else "Juicio Ordinario (Sin rebaja)")
+
+        r_final_min, r_final_max = res_prision["rango_rebajado"] if modalidad_rebaja != "Ninguna" else res_prision["rango_base"]
+
+        texto_reporte = f"""INFORME DE DOSIFICACIÓN Y PRESCRIPCIÓN
+Fecha del hecho: {fecha_hecho.strftime('%d/%m/%Y')}
+Normativa aplicable: Código Penal (Ley 599 de 2000) y Código de Procedimiento Penal (Ley 906 de 2004)
+Delito analizado: {delito_sel}
+
+CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal - Art. 292 Ley 906 / Art. 86 C.P.):
+- Término prescriptivo inicial: {res_presc['anos_termino']} años.
+- ¿Hubo formulación de imputación?: {'SÍ (' + fecha_imputacion.strftime('%d/%m/%Y') + ' - Nuevo término por la mitad del máximo: ' + str(res_presc['anos_interrupcion']) + ' años)' if hubo_imputacion else 'NO'}
+- FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}
+
+1. PENA PRIVATIVA DE LA LIBERTAD (PRISIÓN):
+- Modalidad de terminación / defensa: {modalidad_rebaja}
+- Detalle de la etapa / rebaja aplicada: {texto_etapa_reporte}
+- Marco punitivo base de movilidad (Cuartos punitivos): {res_prision['rango_base'][0]} a {res_prision['rango_base'][1]} meses.
+- Rango o pena definitiva aplicable: {r_final_min} a {r_final_max} meses ({meses_a_anos_meses(r_final_min)} a {meses_a_anos_meses(r_final_max)}).
+"""
+        if modalidad_rebaja != "Ninguna":
+            texto_reporte += f"- Nota: Se calcularon los cuartos punitivos de movilidad y la rebaja por terminación anticipada ({modalidad_rebaja}) se aplicó sobre ambos extremos (mínimo y máximo) conforme a la jurisprudencia de la Sala Penal de la CSJ.\n"
+        else:
+            texto_reporte += f"- Sistema de Cuartos Punitivos (Art. 61):\n"
+            for nombre, (c_min, c_max) in res_prision["cuartos_base"].items():
+                texto_reporte += f"  * {nombre}: {c_min} a {c_max} meses ({meses_a_anos_meses(c_min)} a {meses_a_anos_meses(c_max)})\n"
+            
+        if aplica_multa and res_multa and min_multa > 0:
+            m_fin_min, m_fin_max = res_multa["rango_rebajado"] if modalidad_rebaja != "Ninguna" else res_multa["rango_base"]
+            texto_reporte += f"""
+2. PENA PECUNIARIA (MULTA - Art. 39):
+- Rango de multa aplicable: {m_fin_min} SMLMV a {m_fin_max} SMLMV.
+"""
+
+        st.text_area("Copia este texto para tus documentos:", value=texto_reporte, height=280)
