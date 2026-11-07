@@ -196,7 +196,6 @@ if hubo_imputacion:
 
 aplica_multa = st.sidebar.checkbox("¿El tipo penal incluye pena de multa? (Art. 39)")
 
-# Catálogo de Delitos Frecuentes
 delitos_catalogo = {
     "Personalizado (Ingresar manualmente)": (108.0, 360.0),
     "Homicidio Simple (Art. 103)": (153.0, 450.0),
@@ -255,8 +254,8 @@ else:
     max_basico = max_pena_encontrada
     st.sidebar.success(f"⚖️ **Delito mayor entidad base:** {min_basico} a {max_basico} meses.")
     
-    aumento_concurso_min = st.sidebar.number_input("Fracción incremento mín concurso (ej: 0.5)", min_value=0.0, value=0.5, step=0.1)
-    aumento_concurso_max = st.sidebar.number_input("Fracción incremento máx concurso (ej: 1.0)", min_value=0.0, value=1.0, step=0.1)
+    aumento_concurso_min = st.sidebar.number_input("Fracción incremento mín concurso", min_value=0.0, value=0.5, step=0.1)
+    aumento_concurso_max = st.sidebar.number_input("Fracción incremento máx concurso", min_value=0.0, value=1.0, step=0.1)
 
 st.sidebar.subheader("🔺 Circunstancias Calificantes")
 es_calificado = st.sidebar.checkbox("¿Es tipo calificado / agravante de entrada?")
