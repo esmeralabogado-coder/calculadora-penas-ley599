@@ -22,6 +22,7 @@ def meses_a_anos_meses(meses_float):
     return " y ".join(partes) if partes else "0 meses"
 
 def calcular_prescripcion(fecha_hecho, max_meses_pena, es_tentativa, hubo_imputacion, fecha_imputacion=None):
+    # Término base de prescripción: máximo de la pena (o la mitad si es tentativa), mínimo 5 años (Art. 83)
     meses_base = max_meses_pena / 2.0 if es_tentativa else max_meses_pena
     anos_prescripcion = meses_base / 12.0
     
@@ -34,23 +35,26 @@ def calcular_prescripcion(fecha_hecho, max_meses_pena, es_tentativa, hubo_imputa
     
     fecha_prescripcion_final = fecha_prescripcion_inicial
     interrumpida = False
+    anos_interrupcion = 0.0
     
     if hubo_imputacion and fecha_imputacion:
         interrumpida = True
-        termino_interrupcion_anos = anos_prescripcion / 2.0
-        if termino_interrupcion_anos < 3.0:
-            termino_interrupcion_anos = 3.0
-        elif termino_interrupcion_anos > 5.0:
-            termino_interrupcion_anos = 5.0
+        # Regla Art. 86: Empieza a correr de nuevo por la mitad del término inicial (mínimo 3, máximo 5 años)
+        anos_interrupcion = anos_prescripcion / 2.0
+        if anos_interrupcion < 3.0:
+            anos_interrupcion = 3.0
+        elif anos_interrupcion > 5.0:
+            anos_interrupcion = 5.0
             
-        anos_int = int(termino_interrupcion_anos)
-        dias_int = int((termino_interrupcion_anos - anos_int) * 365)
+        anos_int = int(anos_interrupcion)
+        dias_int = int((anos_interrupcion - anos_int) * 365)
         fecha_prescripcion_final = fecha_imputacion + relativedelta(years=anos_int, days=dias_int)
         
     return {
         "anos_termino": round(anos_prescripcion, 2),
-        "fecha_inicial": fecha_prescripcion_inicial,
         "interrumpida": interrumpida,
+        "anos_interrupcion": round(anos_interrupcion, 2) if interrumpida else 0.0,
+        "fecha_inicial": fecha_prescripcion_inicial,
         "fecha_final": fecha_prescripcion_final
     }
 
@@ -67,12 +71,10 @@ def calcular_penas_y_cuartos(
     min_trabajo = min_basico
     max_trabajo = max_basico
     
-    # 1. Tipo Calificado
     if es_calificado:
         min_trabajo = min_basico + (min_basico * calif_min_aumento)
         max_trabajo = max_basico + (max_basico * calif_max_aumento)
 
-    # 2. Atenuantes Especiales (Ira / Marginalidad)
     if estado_especial == "Ira o Intenso Dolor (Art. 57: Disminución de 1/6 a 1/2)":
         min_trabajo = max(0.0, min_trabajo - (min_trabajo * 0.50)) 
         max_trabajo = max(0.0, max_trabajo - (max_trabajo * (1/6))) 
@@ -80,25 +82,21 @@ def calcular_penas_y_cuartos(
         min_trabajo = max(0.0, min_trabajo - (min_trabajo * 0.75)) 
         max_trabajo = max(0.0, max_trabajo - (max_trabajo * 0.50)) 
 
-    # 3. Concurso
     if es_concurso:
         min_trabajo = min_trabajo + (min_trabajo * aumento_concurso_min)
         max_trabajo = max_trabajo + (max_trabajo * aumento_concurso_max)
 
-    # 4. Tentativa
     if tentativa:
         min_trabajo = min_trabajo * 0.25  
         max_trabajo = max_trabajo * 0.50  
 
-    # 5. Circunstancias Específicas
     if tipo_circ_especifica == "Agravante específica (Aumento fraccionado)":
         min_trabajo = min_trabajo + (min_trabajo * frac_circ_min)
         max_trabajo = max_trabajo + (max_trabajo * frac_circ_max)
     elif tipo_circ_especifica == "Atenuante específica (Disminución fraccionada)":
         min_trabajo = max(0.0, min_trabajo - (min_trabajo * frac_circ_max))
-        max_trabajo = max(0.0, max_trabajo - (max_trabajo * frac_circ_min))
+        max_trabajo = max(0.0, max_trabajo - (min_trabajo * frac_circ_min))
 
-    # 6. Reglas de Modificación (Art. 61) si no es terminación anticipada
     if modalidad_rebaja == "Ninguna":
         if regla == 0:
             nuevo_min = min_trabajo
@@ -126,16 +124,15 @@ def calcular_penas_y_cuartos(
         nuevo_min = min_trabajo
         nuevo_max = max_trabajo
 
-    # 7. Aplicación de Rebajas por Terminación Anticipada sobre MÍNIMO y MÁXIMO
     if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
         if "Imputación" in fase_allanamiento:
             nuevo_min = nuevo_min * 0.50
             nuevo_max = nuevo_max * 0.50
         elif "Preparatoria" in fase_allanamiento:
-            nuevo_min = nuevo_min * (2/3) # Rebaja de 1/3
+            nuevo_min = nuevo_min * (2/3) 
             nuevo_max = nuevo_max * (2/3)
         elif "Juicio" in fase_allanamiento:
-            nuevo_min = nuevo_min * (4/5) # Rebaja de 1/5
+            nuevo_min = nuevo_min * (4/5) 
             nuevo_max = nuevo_max * (4/5)
             
     elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
@@ -314,13 +311,13 @@ if st.sidebar.button("Calcular individualización"):
         
         res_presc = calcular_prescripcion(fecha_hecho, max_basico, es_tentativa, hubo_imputacion, fecha_imputacion)
         
-        st.header("⏳ Análisis de Prescripción y Extinción de la Acción Penal")
-        st.info(f"Término prescriptivo aplicable: {res_presc['anos_termino']} años (Conforme a pena máxima y tentativa).")
+        st.header("⏳ Análisis de Prescripción y Extinción de la Acción Penal (Arts. 83 y 86)")
+        st.info(f"Término prescriptivo inicial: {res_presc['anos_termino']} años (Conforme a pena máxima y tentativa).")
         if res_presc['interrumpida']:
-            st.warning(f"⚠️ Término interrumpido por Formulación de Imputación el {fecha_imputacion.strftime('%d/%m/%Y')}.")
-            st.error(f"🚨 Fecha fatídica de Prescripción (Extinción de la Acción Penal): {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
+            st.warning(f"⚠️ Término interrumpido por Formulación de Imputación el {fecha_imputacion.strftime('%d/%m/%Y')}. Nuevo término de prescripción por la mitad ({res_presc['anos_interrupcion']} años).")
+            st.error(f"🚨 FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
         else:
-            st.error(f"🚨 Fecha fatídica de Prescripción (Extinción de la Acción Penal): {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
+            st.error(f"🚨 FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
 
         st.markdown("---")
 
@@ -406,9 +403,9 @@ if st.sidebar.button("Calcular individualización"):
 Fecha del hecho: {fecha_hecho.strftime('%d/%m/%Y')}
 Normativa aplicable: Código Penal Colombiano (Ley 599 de 2000)
 
-CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal):
-- Término prescriptivo: {res_presc['anos_termino']} años.
-- ¿Hubo formulación de imputación?: {'SÍ (' + fecha_imputacion.strftime('%d/%m/%Y') + ')' if hubo_imputacion else 'NO'}
+CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal - Arts. 83 y 86):
+- Término prescriptivo inicial: {res_presc['anos_termino']} años.
+- ¿Hubo formulación de imputación?: {'SÍ (' + fecha_imputacion.strftime('%d/%m/%Y') + ' - Término de interrupción por la mitad: ' + str(res_presc['anos_interrupcion']) + ' años)' if hubo_imputacion else 'NO'}
 - FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}
 
 1. PENA PRIVATIVA DE LA LIBERTAD (PRISIÓN):
