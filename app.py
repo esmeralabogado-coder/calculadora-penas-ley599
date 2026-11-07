@@ -22,6 +22,7 @@ def meses_a_anos_meses(meses_float):
     return " y ".join(partes) if partes else "0 meses"
 
 def calcular_prescripcion(fecha_hecho, max_meses_pena, es_tentativa, hubo_imputacion, fecha_imputacion=None):
+    # Término base inicial: máximo de la pena (o la mitad si es tentativa) llevado a años, mínimo 5 años (Art. 83 C.P.)
     meses_base = max_meses_pena / 2.0 if es_tentativa else max_meses_pena
     anos_prescripcion = meses_base / 12.0
     
@@ -38,11 +39,10 @@ def calcular_prescripcion(fecha_hecho, max_meses_pena, es_tentativa, hubo_imputa
     
     if hubo_imputacion and fecha_imputacion:
         interrumpida = True
+        # Regla Ley 906 (Art. 292 / Art. 86 C.P.): Inicia un nuevo término igual a la mitad del máximo de la pena, mínimo 3 años (1095 días)
         anos_interrupcion = anos_prescripcion / 2.0
         if anos_interrupcion < 3.0:
             anos_interrupcion = 3.0
-        elif anos_interrupcion > 5.0:
-            anos_interrupcion = 5.0
             
         anos_int = int(anos_interrupcion)
         dias_int = int((anos_interrupcion - anos_int) * 365)
@@ -128,7 +128,7 @@ def calcular_penas_y_cuartos(
             nuevo_max = nuevo_max * 0.50
         elif "preparatoria" in fase_allanamiento.lower() or "1/3" in fase_allanamiento:
             nuevo_min = nuevo_min * (2/3) 
-            nuevo_max = nuevo_max * (2/3)
+            nuevo_max = max_trabajo * (2/3) if False else nuevo_max * (2/3)
         elif "juicio" in fase_allanamiento.lower() or "1/5" in fase_allanamiento:
             nuevo_min = nuevo_min * (4/5) 
             nuevo_max = nuevo_max * (4/5)
@@ -185,13 +185,13 @@ def calcular_penas_y_cuartos(
 st.set_page_config(page_title="Individualización de Penas", page_icon="⚖️")
 
 st.title("⚖️ Calculadora Integral de Penas, Cuartos y Prescripción")
-st.caption("Conforme al Código Penal Colombiano (Ley 599 de 2000) y Ley 906 de 2004")
+st.caption("Conforme al Código Penal (Ley 599 de 2000) y Código de Procedimiento Penal (Ley 906 de 2004)")
 
 st.sidebar.header("📋 Parámetros del Caso")
 
 fecha_hecho = st.sidebar.date_input("Fecha del hecho delictivo", value=datetime.date(2026, 1, 1))
 
-st.sidebar.subheader("⏳ Control de Prescripción (Art. 83 y 86)")
+st.sidebar.subheader("⏳ Control de Prescripción (Arts. 83 y 86 C.P. / Art. 292 Ley 906)")
 hubo_imputacion = st.sidebar.checkbox("¿Se formuló imputación de cargos?")
 fecha_imputacion = None
 if hubo_imputacion:
@@ -309,10 +309,10 @@ if st.sidebar.button("Calcular individualización"):
         
         res_presc = calcular_prescripcion(fecha_hecho, max_basico, es_tentativa, hubo_imputacion, fecha_imputacion)
         
-        st.header("⏳ Análisis de Prescripción y Extinción de la Acción Penal (Arts. 83 y 86)")
-        st.info(f"Término prescriptivo inicial: {res_presc['anos_termino']} años (Conforme a pena máxima y tentativa).")
+        st.header("⏳ Análisis de Prescripción y Extinción de la Acción Penal (Ley 906 / Ley 599)")
+        st.info(f"Término prescriptivo inicial: {res_presc['anos_termino']} años.")
         if res_presc['interrumpida']:
-            st.warning(f"⚠️ Término interrumpido por Formulación de Imputación el {fecha_imputacion.strftime('%d/%m/%Y')}. Nuevo término de prescripción por la mitad ({res_presc['anos_interrupcion']} años).")
+            st.warning(f"⚠️ Término interrumpido por Formulación de Imputación el {fecha_imputacion.strftime('%d/%m/%Y')}. Nuevo término de prescripción por la mitad del máximo ({res_presc['anos_interrupcion']} años, conforme al Art. 292 Ley 906).")
             st.error(f"🚨 FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
         else:
             st.error(f"🚨 FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}")
@@ -403,11 +403,11 @@ if st.sidebar.button("Calcular individualización"):
 
         texto_reporte = f"""INFORME DE DOSIFICACIÓN Y PRESCRIPCIÓN
 Fecha del hecho: {fecha_hecho.strftime('%d/%m/%Y')}
-Normativa aplicable: Código Penal Colombiano (Ley 599 de 2000)
+Normativa aplicable: Código Penal (Ley 599 de 2000) y Código de Procedimiento Penal (Ley 906 de 2004)
 
-CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal - Arts. 83 y 86):
+CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal - Art. 292 Ley 906 / Art. 86 C.P.):
 - Término prescriptivo inicial: {res_presc['anos_termino']} años.
-- ¿Hubo formulación de imputación?: {'SÍ (' + fecha_imputacion.strftime('%d/%m/%Y') + ' - Término de interrupción por la mitad: ' + str(res_presc['anos_interrupcion']) + ' años)' if hubo_imputacion else 'NO'}
+- ¿Hubo formulación de imputación?: {'SÍ (' + fecha_imputacion.strftime('%d/%m/%Y') + ' - Nuevo término por la mitad del máximo: ' + str(res_presc['anos_interrupcion']) + ' años)' if hubo_imputacion else 'NO'}
 - FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}
 
 1. PENA PRIVATIVA DE LA LIBERTAD (PRISIÓN):
