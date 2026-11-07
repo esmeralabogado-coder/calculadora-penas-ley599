@@ -1,26 +1,43 @@
 import streamlit as st
 import datetime
 
-def calcular_penas_y_cuartos(min_basico, max_basico, regla, prop1=0.0, prop2=None, tentativa=False, modalidad_rebaja="Ninguna", fase_allanamiento="", rebaja_pactada_pct=0.0, es_concurso=False, aumento_concurso_min=0.0, aumento_concurso_max=0.0, tipo_circ_especifica="Ninguna", frac_circ_min=0.0, frac_circ_max=0.0, gen_atenuantes=False, gen_agravantes=False, es_calificado=False, calif_min_aumento=0.0, calif_max_aumento=0.0):
+def calcular_penas_y_cuartos(
+    min_basico, max_basico, regla, prop1=0.0, prop2=None, 
+    es_calificado=False, calif_min_aumento=0.0, calif_max_aumento=0.0,
+    estado_especial="Ninguno",
+    es_concurso=False, aumento_concurso_min=0.0, aumento_concurso_max=0.0,
+    tentativa=False,
+    tipo_circ_especifica="Ninguna", frac_circ_min=0.0, frac_circ_max=0.0,
+    gen_atenuantes=False, gen_agravantes=False,
+    modalidad_rebaja="Ninguna", fase_allanamiento="", rebaja_pactada_pct=0.0
+):
     min_trabajo = min_basico
     max_trabajo = max_basico
     
-    # 1. Aplicación previa por Tipo Calificado / Circunstancias Calificantes
+    # 1. Tipo Calificado / Circunstancias Calificantes (Modifican el tipo base de entrada)
     if es_calificado:
         min_trabajo = min_basico + (min_basico * calif_min_aumento)
         max_trabajo = max_basico + (max_basico * calif_max_aumento)
 
-    # 2. Concurso de Delitos (Art. 31 Ley 599)
+    # 2. Estados de Atenuación Especial (Ira/Intenso Dolor - Art. 57 o Marginalidad - Art. 56)
+    if estado_especial == "Ira o Intenso Dolor (Art. 57: Disminución de 1/6 a 1/2)":
+        min_trabajo = max(0.0, min_trabajo - (min_trabajo * 0.50)) 
+        max_trabajo = max(0.0, max_trabajo - (max_trabajo * (1/6))) 
+    elif estado_especial == "Marginalidad, Ignorancia o Pobreza Extrema (Art. 56: Disminución de 1/2 a 3/4)":
+        min_trabajo = max(0.0, min_trabajo - (min_trabajo * 0.75)) 
+        max_trabajo = max(0.0, max_trabajo - (max_trabajo * 0.50)) 
+
+    # 3. Concurso de Delitos (Art. 31 Ley 599)
     if es_concurso:
         min_trabajo = min_trabajo + (min_trabajo * aumento_concurso_min)
         max_trabajo = max_trabajo + (max_trabajo * aumento_concurso_max)
 
-    # 3. Tentativa (Art. 27 Ley 599)
+    # 4. Tentativa (Art. 27 Ley 599: Disminución de 1/2 a 3/4 partes)
     if tentativa:
         min_trabajo = min_trabajo * 0.25  
         max_trabajo = max_trabajo * 0.50  
 
-    # 4. Circunstancias Específicas
+    # 5. Circunstancias Específicas (Aumentos o Disminuciones fraccionadas)
     if tipo_circ_especifica == "Agravante específica (Aumento fraccionado)":
         min_trabajo = min_trabajo + (min_trabajo * frac_circ_min)
         max_trabajo = max_trabajo + (max_trabajo * frac_circ_max)
@@ -28,7 +45,7 @@ def calcular_penas_y_cuartos(min_basico, max_basico, regla, prop1=0.0, prop2=Non
         min_trabajo = max(0.0, min_trabajo - (min_trabajo * frac_circ_max))
         max_trabajo = max(0.0, max_trabajo - (max_trabajo * frac_circ_min))
 
-    # 5. Terminación anticipada
+    # 6. Terminación Anticipada (Allanamiento por fases o Preacuerdo pactado)
     if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
         if "Imputación" in fase_allanamiento:
             min_trabajo = min_trabajo * 0.50
@@ -45,7 +62,7 @@ def calcular_penas_y_cuartos(min_basico, max_basico, regla, prop1=0.0, prop2=Non
         min_trabajo = min_trabajo * factor_descuento
         max_trabajo = max_trabajo * factor_descuento
 
-    # 6. Reglas de modificación (Art. 61)
+    # 7. Reglas de Modificación Punitiva (Art. 61)
     if regla == 0:
         nuevo_min = min_trabajo
         nuevo_max = max_trabajo
@@ -67,7 +84,7 @@ def calcular_penas_y_cuartos(min_basico, max_basico, regla, prop1=0.0, prop2=Non
         menor = min(prop1, prop2 if prop2 is not None else 0.0)
         mayor = max(prop1, prop2 if prop2 is not None else 0.0)
         nuevo_min = min_trabajo - (min_trabajo * mayor)
-        nuevo_max = max_trabajo - (max_trabajo * menor)
+        nuevo_max = max_trabajo - (min_trabajo * menor)
     
     nuevo_min = max(0.0, nuevo_min)
     nuevo_max = max(0.0, nuevo_max)
@@ -80,6 +97,7 @@ def calcular_penas_y_cuartos(min_basico, max_basico, regla, prop1=0.0, prop2=Non
     c3 = (round(nuevo_min + 2*cuarto_tam, 2), round(nuevo_min + 3*cuarto_tam, 2))
     c4 = (round(nuevo_min + 3*cuarto_tam, 2), round(nuevo_max, 2))
 
+    # Reglas de cuartos por Circunstancias Genéricas (Art. 61)
     if gen_agravantes and not gen_atenuantes:
         cuartos_dict = {
             "Segundo cuarto (Medio 1)": c2,
@@ -121,47 +139,64 @@ st.sidebar.subheader("🔒 Prisión (Delito Base)")
 min_basico = st.sidebar.number_input("Pena Mínima Básica (meses)", min_value=0.0, value=108.0, step=1.0)
 max_basico = st.sidebar.number_input("Pena Máxima Básica (meses)", min_value=0.0, value=360.0, step=1.0)
 
-# Calificantes / Tipo Calificado
-st.sidebar.subheader("🔺 Circunstancias Calificantes / Tipo Calificado")
-es_calificado = st.sidebar.checkbox("¿Es tipo calificado / agrava el extremo básico?")
+# 1. Calificantes / Tipo Calificado
+st.sidebar.subheader("🔺 1. Circunstancias Calificantes")
+es_calificado = st.sidebar.checkbox("¿Es tipo calificado / agravante de entrada?")
 calif_min_aumento, calif_max_aumento = 0.0, 0.0
 if es_calificado:
-    calif_min_aumento = st.sidebar.number_input("Incremento mín al básico (ej: 0.5 para la mitad)", min_value=0.0, value=0.5, step=0.1)
-    calif_max_aumento = st.sidebar.number_input("Incremento máx al básico (ej: 1.0 para otro tanto)", min_value=0.0, value=1.0, step=0.1)
+    calif_min_aumento = st.sidebar.number_input("Incremento mín al básico (ej: 0.5)", min_value=0.0, value=0.5, step=0.1)
+    calif_max_aumento = st.sidebar.number_input("Incremento máx al básico (ej: 1.0)", min_value=0.0, value=1.0, step=0.1)
 
-st.sidebar.subheader("🔗 Concurso de Delitos (Art. 31)")
+# 2. Estados Especiales (Ira / Marginalidad)
+st.sidebar.subheader("🔥 2. Atenuantes Especiales")
+estado_especial = st.sidebar.selectbox(
+    "Seleccione estado especial:",
+    options=[
+        "Ninguno",
+        "Ira o Intenso Dolor (Art. 57: Disminución de 1/6 a 1/2)",
+        "Marginalidad, Ignorancia o Pobreza Extrema (Art. 56: Disminución de 1/2 a 3/4)"
+    ]
+)
+
+# 3. Concurso de Delitos
+st.sidebar.subheader("🔗 3. Concurso de Delitos (Art. 31)")
 es_concurso = st.sidebar.checkbox("¿Hay concurso de delitos?")
 aumento_concurso_min, aumento_concurso_max = 0.0, 0.0
 if es_concurso:
-    aumento_concurso_min = st.sidebar.number_input("Fracción incremento mín (ej: 0.5)", min_value=0.0, value=0.0, step=0.1)
-    aumento_concurso_max = st.sidebar.number_input("Fracción incremento máx (ej: 1.0)", min_value=0.0, value=0.0, step=0.1)
+    aumento_concurso_min = st.sidebar.number_input("Fracción incremento mín concurso (ej: 0.5)", min_value=0.0, value=0.0, step=0.1)
+    aumento_concurso_max = st.sidebar.number_input("Fracción incremento máx concurso (ej: 1.0)", min_value=0.0, value=0.0, step=0.1)
 
-st.sidebar.subheader("⚖️ Circunstancias Genéricas (Art. 55 y 58)")
-gen_atenuantes = st.sidebar.checkbox("Concurren atenuantes genéricas (Art. 55)")
-gen_agravantes = st.sidebar.checkbox("Concurren agravantes genéricas (Art. 58)")
+# 4. Tentativa
+st.sidebar.subheader("🎯 4. Fase de Ejecución")
+es_tentativa = st.sidebar.checkbox("¿Es conducta tentada? (Art. 27)")
 
-st.sidebar.subheader("📌 Circunstancias Específicas")
+# 5. Circunstancias Específicas
+st.sidebar.subheader("📌 5. Circunstancias Específicas")
 tipo_circ_especifica = st.sidebar.selectbox(
     "Modificadores específicos:",
     options=["Ninguna", "Agravante específica (Aumento fraccionado)", "Atenuante específica (Disminución fraccionada)"]
 )
 frac_circ_min, frac_circ_max = 0.0, 0.0
 if tipo_circ_especifica != "Ninguna":
-    frac_circ_min = st.sidebar.number_input("Fracción inferior (ej: 0.33 para 1/3)", min_value=0.0, max_value=2.0, value=0.33, step=0.01)
-    frac_circ_max = st.sidebar.number_input("Fracción superior (ej: 0.5 para 1/2)", min_value=0.0, max_value=2.0, value=0.50, step=0.01)
+    frac_circ_min = st.sidebar.number_input("Fracción inferior (ej: 0.33)", min_value=0.0, max_value=2.0, value=0.33, step=0.01)
+    frac_circ_max = st.sidebar.number_input("Fracción superior (ej: 0.50)", min_value=0.0, max_value=2.0, value=0.50, step=0.01)
 
+# 6. Circunstancias Genéricas
+st.sidebar.subheader("⚖️ 6. Circunstancias Genéricas (Art. 55 y 58)")
+gen_atenuantes = st.sidebar.checkbox("Concurren atenuantes genéricas (Art. 55)")
+gen_agravantes = st.sidebar.checkbox("Concurren agravantes genéricas (Art. 58 - Excluye 1er cuarto)")
+
+# Parámetros de Multa
 min_multa, max_multa = 0.0, 0.0
 valor_smlmv = 1423500.0  
 if aplica_multa:
-    st.sidebar.subheader("💰 Multa (SMLMV)")
+    st.sidebar.subheader("💰 Pena Pecuniaria (Multa)")
     min_multa = st.sidebar.number_input("Multa Mínima Básica (SMLMV)", min_value=0.0, value=133.33, step=10.0)
     max_multa = st.sidebar.number_input("Multa Máxima Básica (SMLMV)", min_value=0.0, value=1500.0, step=10.0)
     valor_smlmv = st.sidebar.number_input("Valor SMLMV (COP)", min_value=0.0, value=1423500.0, step=10000.0)
 
-st.sidebar.subheader("🎯 Fase de Ejecución")
-es_tentativa = st.sidebar.checkbox("¿Es conducta tentada? (Art. 27)")
-
-st.sidebar.subheader("🤝 Terminación Anticipada")
+# 7. Terminación Anticipada
+st.sidebar.subheader("🤝 7. Terminación Anticipada")
 modalidad_rebaja = st.sidebar.radio(
     "Modalidad de rebaja:",
     options=["Ninguna", "Allanamiento unilateral (Fases legales)", "Preacuerdo pactado (Porcentaje negociado)"]
@@ -172,7 +207,7 @@ rebaja_pactada_pct = 0.0
 
 if modalidad_rebaja == "Allanamiento unilateral (Fases legales)":
     fase_allanamiento = st.sidebar.selectbox(
-        "Fase Procesal del Allanamiento",
+        "Fase Procesal",
         options=[
             "Hasta formulación de imputación (Rebaja hasta 1/2)",
             "Hasta antes de audiencia preparatoria (Rebaja hasta 1/3)",
@@ -188,7 +223,8 @@ elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
         step=1.0
     )
 
-st.sidebar.subheader("📊 Reglas de Modificación (Art. 61)")
+# 8. Reglas Art. 61
+st.sidebar.subheader("📊 8. Reglas de Modificación (Art. 61)")
 reglas_dict = {
     0: "0. Sin regla (Límites básicos / post-ajustes)",
     1: "1. Aumento/Disminución proporcional al mín y máx",
@@ -202,7 +238,7 @@ regla_sel = st.sidebar.selectbox("Seleccione la Regla", options=list(reglas_dict
 
 prop1, prop2 = 0.0, 0.0
 if regla_sel in [1, 2, 3]:
-    prop1 = st.sidebar.number_input("Proporción (ej: 0.33 para 1/3, 0.5 para 1/2)", min_value=0.0, max_value=1.0, value=0.3333, step=0.01)
+    prop1 = st.sidebar.number_input("Proporción (ej: 0.33)", min_value=0.0, max_value=1.0, value=0.3333, step=0.01)
 elif regla_sel in [4, 5]:
     prop1 = st.sidebar.number_input("Primera Proporción", min_value=0.0, max_value=1.0, value=0.3333, step=0.01)
     prop2 = st.sidebar.number_input("Segunda Proporción", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
@@ -218,15 +254,19 @@ if st.sidebar.button("Calcular individualización"):
         # --- CÁLCULO PRISIÓN ---
         res_prision = calcular_penas_y_cuartos(
             min_basico, max_basico, regla_sel, prop1, prop2, 
-            es_tentativa, modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct,
+            es_calificado, calif_min_aumento, calif_max_aumento,
+            estado_especial,
             es_concurso, aumento_concurso_min, aumento_concurso_max,
-            tipo_circ_especifica, frac_circ_min, frac_circ_max, gen_atenuantes, gen_agravantes,
-            es_calificado, calif_min_aumento, calif_max_aumento
+            es_tentativa,
+            tipo_circ_especifica, frac_circ_min, frac_circ_max,
+            gen_atenuantes, gen_agravantes,
+            modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct
         )
         
         st.header("🔒 1. Pena Privativa de la Libertad (Prisión)")
         notas_ajuste = []
         if es_calificado: notas_ajuste.append("Tipo Calificado / Agravante de Entrada")
+        if estado_especial != "Ninguno": notas_ajuste.append(estado_especial)
         if es_concurso: notas_ajuste.append("Concurso de Delitos (Art. 31)")
         if gen_agravantes and not gen_atenuantes: notas_ajuste.append("Agravantes Genéricas (Art. 61 - Se excluye 1er cuarto)")
         if gen_atenuantes and not gen_agravantes: notas_ajuste.append("Atenuantes Genéricas (Art. 61)")
@@ -253,10 +293,13 @@ if st.sidebar.button("Calcular individualización"):
             st.markdown("---")
             res_multa = calcular_penas_y_cuartos(
                 min_multa, max_multa, regla_sel, prop1, prop2, 
-                es_tentativa, modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct,
+                es_calificado, calif_min_aumento, calif_max_aumento,
+                estado_especial,
                 es_concurso, aumento_concurso_min, aumento_concurso_max,
-                tipo_circ_especifica, frac_circ_min, frac_circ_max, gen_atenuantes, gen_agravantes,
-                es_calificado, calif_min_aumento, calif_max_aumento
+                es_tentativa,
+                tipo_circ_especifica, frac_circ_min, frac_circ_max,
+                gen_atenuantes, gen_agravantes,
+                modalidad_rebaja, fase_allanamiento, rebaja_pactada_pct
             )
             
             st.header("💰 2. Pena Pecuniaria (Multa - Art. 39)")
@@ -300,4 +343,3 @@ Normativa aplicable: Código Penal Colombiano (Ley 599 de 2000)
                 texto_reporte += f"  * {nombre}: {c_min} a {c_max} SMLMV\n"
 
         st.text_area("Copia este texto para tus documentos:", value=texto_reporte, height=250)
-    
