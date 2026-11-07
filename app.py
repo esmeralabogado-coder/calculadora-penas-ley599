@@ -196,75 +196,19 @@ if hubo_imputacion:
 
 aplica_multa = st.sidebar.checkbox("¿El tipo penal incluye pena de multa? (Art. 39)")
 
-delitos_catalogo = {
-    "Personalizado (Ingresar manualmente)": (108.0, 360.0),
-    "Homicidio Simple (Art. 103)": (153.0, 450.0),
-    "Homicidio Agravado (Art. 104)": (400.0, 600.0),
-    "Fabricación, tráfico y porte de armas (Art. 365)": (108.0, 216.0),
-    "Tráfico, fabricación o porte de estupefacientes (Art. 376)": (128.0, 360.0),
-    "Hurto Calificado y Agravado (Arts. 239-241)": (72.0, 216.0),
-    "Extorsión (Art. 244)": (192.0, 288.0),
-    "Secuestro Simple (Art. 168)": (192.0, 360.0),
-    "Peculado por apropiación (Art. 397)": (96.0, 216.0),
-    "Cohecho propio (Art. 405)": (80.0, 144.0),
-    "Acceso carnal violento (Art. 205)": (144.0, 252.0)
-}
+st.sidebar.subheader("🔒 Prisión (Límites Básicos)")
+min_basico = st.sidebar.number_input("Pena Mínima Básica (meses)", min_value=0.0, value=108.0, step=1.0)
+max_basico = st.sidebar.number_input("Pena Máxima Básica (meses)", min_value=0.0, value=360.0, step=1.0)
+st.sidebar.caption(f"Equivalente: {meses_a_anos_meses(min_basico)} a {meses_a_anos_meses(max_basico)}")
 
-st.sidebar.subheader("🔒 Selección de Delitos y Concurso (Art. 31)")
-modo_concurso = st.sidebar.radio(
-    "Modalidad delictiva:",
-    options=["Delito Único", "Concurso de Conductas (Múltiples delitos)"]
-)
-
-min_basico, max_basico = 108.0, 360.0
-aumento_concurso_min, aumento_concurso_max = 0.0, 0.0
-es_concurso = False
-
-if modo_concurso == "Delito Único":
-    delito_sel = st.sidebar.selectbox("Seleccione el delito:", options=list(delitos_catalogo.keys()))
-    if delito_sel == "Personalizado (Ingresar manualmente)":
-        min_basico = st.sidebar.number_input("Pena Mínima Básica (meses)", min_value=0.0, value=108.0, step=1.0)
-        max_basico = st.sidebar.number_input("Pena Máxima Básica (meses)", min_value=0.0, value=360.0, step=1.0)
-    else:
-        min_basico, max_basico = delitos_catalogo[delito_sel]
-        st.sidebar.info(f"Pena básica legal: {min_basico} a {max_basico} meses ({meses_a_anos_meses(min_basico)} a {meses_a_anos_meses(max_basico)})")
-else:
-    es_concurso = True
-    st.sidebar.markdown("### Tasación de Delitos en Concurso")
-    num_delitos = st.sidebar.number_input("Número de delitos concurrentes", min_value=2, max_value=5, value=2)
-    
-    max_pena_encontrada = 0.0
-    min_pena_asociada = 0.0
-    
-    for i in range(1, int(num_delitos) + 1):
-        st.sidebar.markdown(f"**Delito #{i}**")
-        d_sel = st.sidebar.selectbox(f"Tipo penal #{i}", options=list(delitos_catalogo.keys()), key=f"delito_{i}")
-        if d_sel == "Personalizado (Ingresar manualmente)":
-            d_min = st.sidebar.number_input(f"Mínimo #{i} (meses)", min_value=0.0, value=36.0, step=1.0, key=f"min_{i}")
-            d_max = st.sidebar.number_input(f"Máximo #{i} (meses)", min_value=0.0, value=120.0, step=1.0, key=f"max_{i}")
-        else:
-            d_min, d_max = delitos_catalogo[d_sel]
-            st.sidebar.text(f"Rango: {d_min} a {d_max} meses")
-            
-        if d_max > max_pena_encontrada:
-            max_pena_encontrada = d_max
-            min_pena_asociada = d_min
-            
-    min_basico = min_pena_asociada
-    max_basico = max_pena_encontrada
-    st.sidebar.success(f"⚖️ **Delito mayor entidad base:** {min_basico} a {max_basico} meses.")
-    
-    aumento_concurso_min = st.sidebar.number_input("Fracción incremento mín concurso", min_value=0.0, value=0.5, step=0.1)
-    aumento_concurso_max = st.sidebar.number_input("Fracción incremento máx concurso", min_value=0.0, value=1.0, step=0.1)
-
-st.sidebar.subheader("🔺 Circunstancias Calificantes")
+st.sidebar.subheader("🔺 1. Circunstancias Calificantes")
 es_calificado = st.sidebar.checkbox("¿Es tipo calificado / agravante de entrada?")
 calif_min_aumento, calif_max_aumento = 0.0, 0.0
 if es_calificado:
     calif_min_aumento = st.sidebar.number_input("Incremento mín al básico", min_value=0.0, value=0.5, step=0.1)
     calif_max_aumento = st.sidebar.number_input("Incremento máx al básico", min_value=0.0, value=1.0, step=0.1)
 
-st.sidebar.subheader("🔥 Atenuantes Especiales")
+st.sidebar.subheader("🔥 2. Atenuantes Especiales")
 estado_especial = st.sidebar.selectbox(
     "Seleccione estado especial:",
     options=[
@@ -274,10 +218,17 @@ estado_especial = st.sidebar.selectbox(
     ]
 )
 
-st.sidebar.subheader("🎯 Fase de Ejecución")
+st.sidebar.subheader("🔗 3. Concurso de Delitos (Art. 31)")
+es_concurso = st.sidebar.checkbox("¿Hay concurso de delitos?")
+aumento_concurso_min, aumento_concurso_max = 0.0, 0.0
+if es_concurso:
+    aumento_concurso_min = st.sidebar.number_input("Fracción incremento mín concurso", min_value=0.0, value=0.0, step=0.1)
+    aumento_concurso_max = st.sidebar.number_input("Fracción incremento máx concurso", min_value=0.0, value=0.0, step=0.1)
+
+st.sidebar.subheader("🎯 4. Fase de Ejecución")
 es_tentativa = st.sidebar.checkbox("¿Es conducta tentada? (Art. 27)")
 
-st.sidebar.subheader("📌 Circunstancias Específicas")
+st.sidebar.subheader("📌 5. Circunstancias Específicas")
 tipo_circ_especifica = st.sidebar.selectbox(
     "Modificadores específicos:",
     options=["Ninguna", "Agravante específica (Aumento fraccionado)", "Atenuante específica (Disminución fraccionada)"]
@@ -287,7 +238,7 @@ if tipo_circ_especifica != "Ninguna":
     frac_circ_min = st.sidebar.number_input("Fracción inferior", min_value=0.0, max_value=2.0, value=0.33, step=0.01)
     frac_circ_max = st.sidebar.number_input("Fracción superior", min_value=0.0, max_value=2.0, value=0.50, step=0.01)
 
-st.sidebar.subheader("⚖️ Circunstancias Genéricas (Art. 55 y 58)")
+st.sidebar.subheader("⚖️ 6. Circunstancias Genéricas (Art. 55 y 58)")
 gen_atenuantes = st.sidebar.checkbox("Concurren atenuantes genéricas (Art. 55)")
 gen_agravantes = st.sidebar.checkbox("Concurren agravantes genéricas (Art. 58 - Excluye 1er cuarto)")
 
@@ -326,7 +277,7 @@ elif modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
         step=1.0
     )
 
-st.sidebar.subheader("📊 Reglas de Modificación (Art. 61)")
+st.sidebar.subheader("📊 8. Reglas de Modificación (Art. 61)")
 reglas_dict = {
     0: "0. Sin regla (Límites básicos / post-ajustes)",
     1: "1. Aumento/Disminución proporcional al mín y máx",
@@ -380,7 +331,7 @@ if st.sidebar.button("Calcular individualización"):
         notas_ajuste = []
         if es_calificado: notas_ajuste.append("Tipo Calificado / Agravante de Entrada")
         if estado_especial != "Ninguno": notas_ajuste.append(estado_especial)
-        if es_concurso: notas_ajuste.append("Concurso de Delitos (Art. 31 - Mayor Entidad)")
+        if es_concurso: notas_ajuste.append("Concurso de Delitos (Art. 31)")
         if gen_agravantes and not gen_atenuantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)": 
             notas_ajuste.append("Agravantes Genéricas (Art. 61 - Se excluye 1er cuarto)")
         if gen_atenuantes and not gen_agravantes and modalidad_rebaja != "Preacuerdo pactado (Porcentaje negociado)": 
@@ -447,7 +398,7 @@ CONTROL DE PRESCRIPCIÓN (Extinción de la Acción Penal):
 - FECHA FATÍDICA DE EXTINCIÓN DE LA ACCIÓN PENAL: {res_presc['fecha_final'].strftime('%d/%m/%Y')}
 
 1. PENA PRIVATIVA DE LA LIBERTAD (PRISIÓN):
-- Modalidad: {"Concurso de Conductas Punibles" if es_concurso else "Delito Único"} / {modalidad_rebaja}
+- Modalidad: {modalidad_rebaja}
 - Rango o pena aplicable: {res_prision['rango'][0]} a {res_prision['rango'][1]} meses ({meses_a_anos_meses(res_prision['rango'][0])} a {meses_a_anos_meses(res_prision['rango'][1])}).
 """
         if modalidad_rebaja == "Preacuerdo pactado (Porcentaje negociado)":
